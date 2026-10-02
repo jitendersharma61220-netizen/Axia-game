@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { api } from '@/lib/api';
+import { readAttribution } from '@/lib/attribution';
 
 interface GoogleId {
   initialize(opts: { client_id: string; callback: (r: { credential: string }) => void }): void;
@@ -17,10 +18,9 @@ declare global {
 const SCRIPT_SRC = 'https://accounts.google.com/gsi/client';
 
 /** Google Identity Services button. The API verifies the returned ID token. */
-export function GoogleButton({ onSignedIn }: { onSignedIn: () => void }) {
+export function GoogleButton({ onSignedIn, onError }: { onSignedIn: () => void; onError: (err: unknown) => void }) {
   const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
   const ref = useRef<HTMLDivElement>(null);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!clientId || !ref.current) return;
@@ -29,10 +29,10 @@ export function GoogleButton({ onSignedIn }: { onSignedIn: () => void }) {
         client_id: clientId,
         callback: async ({ credential }) => {
           try {
-            await api('/auth/google', { body: { idToken: credential } });
+            await api('/auth/google', { body: { idToken: credential, ...readAttribution() } });
             onSignedIn();
           } catch (e) {
-            setError((e as Error).message);
+            onError(e);
           }
         },
       });
@@ -48,15 +48,10 @@ export function GoogleButton({ onSignedIn }: { onSignedIn: () => void }) {
     }
     script.addEventListener('load', render);
     return () => script?.removeEventListener('load', render);
-  }, [clientId, onSignedIn]);
+  }, [clientId, onSignedIn, onError]);
 
   if (!clientId) {
     return <p className="text-sm text-muted">Google sign-in isn’t configured yet (set NEXT_PUBLIC_GOOGLE_CLIENT_ID).</p>;
   }
-  return (
-    <div>
-      <div ref={ref} />
-      {error && <p className="mt-2 text-sm text-bad">{error}</p>}
-    </div>
-  );
+  return <div ref={ref} />;
 }

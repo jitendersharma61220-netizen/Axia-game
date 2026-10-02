@@ -50,6 +50,47 @@ model User {
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
   sessions  GameSession[]
+
+  /// How the user arrived (first touch). Used for beta acquisition analytics.
+  inviteCodeId        String?
+  inviteCode          InviteCode? @relation(fields: [inviteCodeId], references: [id], onDelete: SetNull)
+  /// The friend's game session whose challenge link brought this user in.
+  referredBySessionId String?
+  utmSource           String?
+  utmMedium           String?
+  utmCampaign         String?
+  feedback            Feedback[]
+
+  @@index([createdAt])
+}
+
+/// Closed-beta invite codes, created in the admin panel.
+model InviteCode {
+  id          String    @id @default(cuid())
+  /// Stored uppercase; matched case-insensitively.
+  code        String    @unique
+  label       String
+  /// null = unlimited.
+  maxUses     Int?
+  uses        Int       @default(0)
+  expiresAt   DateTime?
+  active      Boolean   @default(true)
+  createdById String
+  createdAt   DateTime  @default(now())
+  users       User[]
+}
+
+model Feedback {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  page      String
+  message   String
+  /// 1–5, optional.
+  rating    Int?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
 }
 
 model Game {

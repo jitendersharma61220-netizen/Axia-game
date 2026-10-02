@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import { useEffect } from 'react';
 import useSWR from 'swr';
 import { fetcher, track } from '@/lib/api';
+import { rememberChallengeRef } from '@/lib/attribution';
 
 interface Share {
   player: string;
@@ -22,6 +23,8 @@ export default function ChallengeLanding() {
 
   useEffect(() => {
     track('share_open', { sessionId });
+    // A friend's challenge link doubles as a closed-beta invite.
+    rememberChallengeRef(sessionId);
   }, [sessionId]);
 
   if (error) return <p className="py-10 text-center text-muted">This challenge link has expired.</p>;

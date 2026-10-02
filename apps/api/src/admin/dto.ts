@@ -120,3 +120,25 @@ export class UpdateUserDto {
   @IsOptional() @IsBoolean()
   banned?: boolean;
 }
+
+const CODE = /^[A-Za-z0-9-]{3,40}$/;
+
+export class CreateInviteDto {
+  @IsString() @Matches(CODE, { message: 'code must be 3–40 letters, numbers or dashes' })
+  code: string;
+
+  @IsString() @MinLength(1) @MaxLength(80)
+  label: string;
+
+  /** Omit for unlimited. */
+  @IsOptional() @IsInt() @Min(1) @Max(100_000)
+  maxUses?: number | null;
+
+  @IsOptional() @IsDateString()
+  expiresAt?: string | null;
+}
+
+export class UpdateInviteDto extends PartialType(OmitType(CreateInviteDto, ['code'] as const)) {
+  @IsOptional() @IsBoolean()
+  active?: boolean;
+}

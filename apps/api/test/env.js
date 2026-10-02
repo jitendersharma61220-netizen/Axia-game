@@ -6,3 +6,5 @@ process.env.JWT_SECRET = 'test-secret';
 process.env.ALLOW_DEV_LOGIN = 'true';
 process.env.ADMIN_EMAILS = 'admin@test.local';
 process.env.GOOGLE_CLIENT_ID = '';
+process.env.RATE_LIMIT_ALLOWLIST = '::ffff:127.0.0.1,127.0.0.1,::1';
+process.env.SIGNUP_MODE = 'open';

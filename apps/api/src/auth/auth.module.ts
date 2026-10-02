@@ -11,12 +11,13 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { Role, type User } from '@prisma/client';
+import { Role, SessionStatus, type User } from '@prisma/client';
 import type { Response } from 'express';
 import { OAuth2Client } from 'google-auth-library';
-import { IsEmail, IsOptional, IsString, MinLength } from 'class-validator';
+import { IsEmail, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 import { config } from '../config';
 import { Public } from '../common/decorators';
+import { RateLimit } from '../common/rate-limit';
 import { PrismaService } from '../prisma/prisma.service';
 import { AnalyticsService } from '../analytics/analytics.service';
 import { toPublicUser } from '../users/users.module';
@@ -52,7 +53,7 @@ export class AuthService {
     }
   }
 
-  async upsertUser(identity: Identity): Promise<{ user: User; isNew: boolean }> {
+  async upsertUser(identity: Identity, attribution: Attribution = {}): Promise<{ user: User; isNew: boolean }> {
     const existing = await this.prisma.user.findUnique({ where: { email: identity.email } });
     const shouldBeAdmin = config.adminEmails.includes(identity.email);
     if (existing) {
@@ -67,15 +68,59 @@ export class AuthService {
       });
       return { user, isNew: false };
     }
-    const user = await this.prisma.user.create({
-      data: { ...identity, role: shouldBeAdmin ? Role.ADMIN : Role.USER },
+
+    const user = await this.prisma.$transaction(async (tx) => {
+      const ref = attribution.ref
+        ? await tx.gameSession.findFirst({ where: { id: attribution.ref, status: SessionStatus.COMPLETED }, select: { id: true } })
+        : null;
+      let inviteCodeId: string | null = null;
+      if (attribution.inviteCode) {
+        const code = await tx.inviteCode.findUnique({ where: { code: attribution.inviteCode.trim().toUpperCase() } });
+        const usable = code && code.active && (!code.expiresAt || code.expiresAt > new Date());
+        if (usable) {
+          // Conditional increment: concurrent signups can never push a code past maxUses.
+          const { count } = await tx.inviteCode.updateMany({
+            where: { id: code.id, ...(code.maxUses !== null && { uses: { lt: code.maxUses } }) },
+            data: { uses: { increment: 1 } },
+          });
+          if (count) inviteCodeId = code.id;
+          else if (!ref && !shouldBeAdmin && config.signupMode === 'invite') {
+            throw new ForbiddenException({ code: 'INVITE_EXHAUSTED', message: 'This invite code has been fully used.' });
+          }
+        }
+      }
+      if (config.signupMode === 'invite' && !inviteCodeId && !ref && !shouldBeAdmin) {
+        if (attribution.inviteCode) {
+          throw new ForbiddenException({ code: 'INVITE_INVALID', message: 'That invite code is not valid or has expired.' });
+        }
+        throw new ForbiddenException({
+          code: 'INVITE_REQUIRED',
+          message: 'Axia is in closed beta. You need a valid invite code or a friend’s challenge link to join.',
+        });
+      }
+      return tx.user.create({
+        data: {
+          ...identity,
+          role: shouldBeAdmin ? Role.ADMIN : Role.USER,
+          inviteCodeId,
+          referredBySessionId: ref?.id ?? null,
+          utmSource: attribution.utmSource?.slice(0, 100),
+          utmMedium: attribution.utmMedium?.slice(0, 100),
+          utmCampaign: attribution.utmCampaign?.slice(0, 100),
+        },
+      });
     });
-    this.analytics.track('signup', user.id, { method: identity.googleSub ? 'google' : 'dev' });
+    this.analytics.track('signup', user.id, {
+      method: identity.googleSub ? 'google' : 'dev',
+      inviteCodeId: user.inviteCodeId,
+      viaChallenge: !!user.referredBySessionId,
+      utmSource: user.utmSource,
+    });
     return { user, isNew: true };
   }
 
-  async signIn(res: Response, identity: Identity) {
-    const { user, isNew } = await this.upsertUser(identity);
+  async signIn(res: Response, identity: Identity, attribution: Attribution = {}) {
+    const { user, isNew } = await this.upsertUser(identity, attribution);
     const token = await this.jwt.signAsync({ sub: user.id }, { expiresIn: `${TOKEN_TTL_DAYS}d` });
     res.cookie(config.authCookie, token, {
       httpOnly: true,
@@ -89,12 +134,31 @@ export class AuthService {
   }
 }
 
-class GoogleLoginDto {
+/** First-touch attribution sent with sign-in; only used when a new account is created. */
+class Attribution {
+  @IsOptional() @IsString() @MaxLength(40)
+  inviteCode?: string;
+
+  /** Session id from a friend's challenge link. */
+  @IsOptional() @IsString() @MaxLength(40)
+  ref?: string;
+
+  @IsOptional() @IsString() @MaxLength(200)
+  utmSource?: string;
+
+  @IsOptional() @IsString() @MaxLength(200)
+  utmMedium?: string;
+
+  @IsOptional() @IsString() @MaxLength(200)
+  utmCampaign?: string;
+}
+
+class GoogleLoginDto extends Attribution {
   @IsString()
   idToken: string;
 }
 
-class DevLoginDto {
+class DevLoginDto extends Attribution {
   @IsEmail()
   email: string;
 
@@ -109,20 +173,24 @@ export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
   @Public()
+  @RateLimit({ key: 'auth', limit: 60, windowSeconds: 60 })
   @Post('google')
   @HttpCode(200)
   async google(@Body() dto: GoogleLoginDto, @Res({ passthrough: true }) res: Response) {
-    return this.auth.signIn(res, await this.auth.verifyGoogleToken(dto.idToken));
+    const { idToken, ...attribution } = dto;
+    return this.auth.signIn(res, await this.auth.verifyGoogleToken(idToken), attribution);
   }
 
   /** Local development only: sign in as any email without Google. */
   @Public()
+  @RateLimit({ key: 'auth', limit: 60, windowSeconds: 60 })
   @Post('dev-login')
   @HttpCode(200)
   async devLogin(@Body() dto: DevLoginDto, @Res({ passthrough: true }) res: Response) {
     if (!config.allowDevLogin) throw new NotFoundException();
-    const email = dto.email.toLowerCase();
-    return this.auth.signIn(res, { email, name: dto.name ?? email.split('@')[0] });
+    const { email: rawEmail, name, ...attribution } = dto;
+    const email = rawEmail.toLowerCase();
+    return this.auth.signIn(res, { email, name: name ?? email.split('@')[0] }, attribution);
   }
 
   @Public()

@@ -149,13 +149,17 @@ async function main() {
     });
   }
 
-  await prisma.user.upsert({
+  // Production admins come from ADMIN_EMAILS (promoted on first Google sign-in), never a seeded account.
+  if (process.env.NODE_ENV !== 'production') await prisma.user.upsert({
     where: { email: 'admin@axia.local' },
     update: { role: Role.ADMIN },
     create: { email: 'admin@axia.local', name: 'Axia Admin', role: Role.ADMIN, birthYear: 1995, ageMode: AgeMode.ADULT },
   });
 
-  console.log(`Seeded: ${games.map((g) => g.slug).join(', ')} (easy/medium/hard each), daily + weekly challenge, admin@axia.local`);
+  console.log(
+    `Seeded: ${games.map((g) => g.slug).join(', ')} (easy/medium/hard each), daily + weekly challenge` +
+      (process.env.NODE_ENV === 'production' ? '' : ', admin@axia.local'),
+  );
 }
 
 main()

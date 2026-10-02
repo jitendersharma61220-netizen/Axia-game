@@ -3,6 +3,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { JwtModule } from '@nestjs/jwt';
 import { config } from './config';
 import { AuthGuard } from './common/auth.guard';
+import { RateLimitGuard } from './common/rate-limit';
 import { PrismaModule } from './prisma/prisma.service';
 import { RedisModule } from './redis/redis.service';
 import { AnalyticsModule } from './analytics/analytics.service';
@@ -14,6 +15,7 @@ import { ChallengesModule } from './challenges/challenges.module';
 import { LeaderboardsModule } from './leaderboards/leaderboards.module';
 import { ShareModule } from './share/share.module';
 import { AdminModule } from './admin/admin.module';
+import { FeedbackModule } from './feedback/feedback.module';
 import { HealthController } from './health/health.controller';
 
 @Module({
@@ -30,8 +32,12 @@ import { HealthController } from './health/health.controller';
     LeaderboardsModule,
     ShareModule,
     AdminModule,
+    FeedbackModule,
   ],
   controllers: [HealthController],
-  providers: [{ provide: APP_GUARD, useClass: AuthGuard }],
+  providers: [
+    { provide: APP_GUARD, useClass: RateLimitGuard },
+    { provide: APP_GUARD, useClass: AuthGuard },
+  ],
 })
 export class AppModule {}

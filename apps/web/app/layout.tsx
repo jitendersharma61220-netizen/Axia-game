@@ -3,6 +3,8 @@ import Link from 'next/link';
 import './globals.css';
 import { AuthProvider } from '@/components/AuthProvider';
 import { Nav } from '@/components/Nav';
+import { AttributionCapture } from '@/components/AttributionCapture';
+import { FeedbackButton } from '@/components/FeedbackButton';
 
 export const metadata: Metadata = {
   title: 'Axia — Skill Games',
@@ -16,6 +18,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body className="min-h-screen antialiased">
         <AuthProvider>
+          <AttributionCapture />
           <Nav />
           <main className="mx-auto max-w-6xl px-4 py-6">{children}</main>
           <footer className="mx-auto max-w-6xl px-4 py-10 text-xs text-muted">
@@ -26,6 +29,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <span>Terms · Privacy · Refunds (pending legal review)</span>
             </div>
           </footer>
+          <FeedbackButton />
         </AuthProvider>
       </body>
     </html>
