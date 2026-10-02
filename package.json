@@ -1,0 +1,17 @@
+{
+  "name": "axia",
+  "private": true,
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @axia/engine build && pnpm --parallel --filter @axia/api --filter @axia/web dev",
+    "build": "pnpm --filter @axia/engine build && pnpm --filter @axia/api build && pnpm --filter @axia/web build",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test",
+    "db:migrate": "pnpm --filter @axia/api prisma:migrate",
+    "db:seed": "pnpm --filter @axia/api seed"
+  }
+}

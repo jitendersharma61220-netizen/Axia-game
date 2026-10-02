@@ -1,0 +1,161 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+/// TEEN = 14–18 (free, separate experience). ADULT = 19+ (commercial).
+enum AgeMode {
+  TEEN
+  ADULT
+}
+
+enum GameStatus {
+  DRAFT
+  LIVE
+  DISABLED
+}
+
+enum ChallengeType {
+  DAILY
+  WEEKLY
+}
+
+enum SessionStatus {
+  STARTED
+  COMPLETED
+  FLAGGED
+  EXPIRED
+}
+
+model User {
+  id        String        @id @default(cuid())
+  googleSub String?       @unique
+  email     String        @unique
+  name      String
+  avatarUrl String?
+  role      Role          @default(USER)
+  /// Self-declared during onboarding. Null until onboarding is complete.
+  birthYear Int?
+  ageMode   AgeMode?
+  banned    Boolean       @default(false)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  sessions  GameSession[]
+}
+
+model Game {
+  id             String             @id @default(cuid())
+  slug           String             @unique
+  name           String
+  description    String
+  /// Key into the engine registry (packages/engine/src/registry.ts).
+  templateKey    String
+  status         GameStatus         @default(DRAFT)
+  ageModes       AgeMode[]          @default([ADULT])
+  estMinutes     Int                @default(5)
+  attemptsPerDay Int                @default(5)
+  availableFrom  DateTime?
+  availableTo    DateTime?
+  sortOrder      Int                @default(0)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  presets        DifficultyPreset[]
+  challenges     Challenge[]
+  sessions       GameSession[]
+}
+
+model DifficultyPreset {
+  id         String        @id @default(cuid())
+  gameId     String
+  game       Game          @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  key        String
+  label      String
+  /// Template params, validated against the template's zod schema on write.
+  params     Json
+  isDefault  Boolean       @default(false)
+  sortOrder  Int           @default(0)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+  challenges Challenge[]
+  sessions   GameSession[]
+
+  @@unique([gameId, key])
+}
+
+model Challenge {
+  id        String        @id @default(cuid())
+  gameId    String
+  game      Game          @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  presetId  String
+  preset    DifficultyPreset @relation(fields: [presetId], references: [id], onDelete: Restrict)
+  type      ChallengeType
+  title     String
+  /// Fixed seed so every player gets the identical level.
+  seed      String
+  startsAt  DateTime
+  endsAt    DateTime
+  createdAt DateTime      @default(now())
+  sessions  GameSession[]
+
+  @@index([type, startsAt, endsAt])
+}
+
+model GameSession {
+  id             String           @id @default(cuid())
+  userId         String
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  gameId         String
+  game           Game             @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  presetId       String
+  preset         DifficultyPreset @relation(fields: [presetId], references: [id], onDelete: Restrict)
+  challengeId    String?
+  challenge      Challenge?       @relation(fields: [challengeId], references: [id], onDelete: SetNull)
+  seed           String
+  /// Params at session start, so later admin edits never change an in-flight game.
+  paramsSnapshot Json
+  status         SessionStatus    @default(STARTED)
+  startedAt      DateTime         @default(now())
+  completedAt    DateTime?
+  durationMs     Int?
+  score          Int?
+  maxScore       Int?
+  submission     Json?
+  breakdown      Json?
+  fraudFlags     String[]         @default([])
+
+  @@index([userId, startedAt])
+  @@index([gameId, status, score])
+}
+
+model AnalyticsEvent {
+  id        String   @id @default(cuid())
+  name      String
+  userId    String?
+  props     Json?
+  createdAt DateTime @default(now())
+
+  @@index([name, createdAt])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String
+  action    String
+  entity    String
+  entityId  String
+  before    Json?
+  after     Json?
+  createdAt DateTime @default(now())
+
+  @@index([entity, entityId])
+  @@index([createdAt])
+}
