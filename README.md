@@ -9,7 +9,8 @@ Short skill games with daily challenges, leaderboards, and "challenge a friend" 
 | `apps/web` | Next.js 15 + Tailwind: the player site and the `/admin` control center, with Phaser game scenes |
 | `apps/api` | NestJS 11 + Prisma (PostgreSQL) + Redis: auth, games, sessions, scoring, leaderboards, challenges, analytics, admin |
 | `packages/engine` | Shared TypeScript game engine: templates, seeded level generators, param schemas, scoring |
-| `docs/` | [Architecture](docs/architecture.md) · [Adding a game](docs/adding-a-game.md) |
+| `deploy/` | Production Docker Compose stack (Caddy HTTPS, Postgres, Redis) and a backup script |
+| `docs/` | [Architecture](docs/architecture.md) · [Adding a game](docs/adding-a-game.md) · [Deploying](docs/deploy.md) |
 
 ## Quick start
 
@@ -41,10 +42,11 @@ pnpm typecheck
 pnpm test        # engine unit tests (Vitest) + API e2e tests (Jest + supertest)
 ```
 
-**CI:** GitHub Actions (`.github/workflows/ci.yml`) runs on every pull request and on every push to `main`. It has three parallel checks:
+**CI:** GitHub Actions (`.github/workflows/ci.yml`) runs on every pull request and on every push to `main`. It has four parallel checks:
 - typecheck + engine tests
 - API e2e tests against Postgres 16 and Redis 7 service containers
 - the web build
+- both production Docker images
 
 The API e2e tests need a running Postgres and Redis. They use a separate `axia_test` database and Redis DB 15 (override with `TEST_DATABASE_URL` / `TEST_REDIS_URL`).
 
@@ -61,6 +63,15 @@ The API e2e tests need a running Postgres and Redis. They use a separate `axia_t
 | Neural Boss | Speed / mental math, 5–15 min | A boss fight powered by rapid-fire puzzles |
 
 Every game has easy, medium and hard presets in the seed, and every setting can be edited in `/admin`.
+
+**Closed-beta tooling:**
+- Invite codes, with uses and an active toggle, managed in `/admin/invites`. A friend's challenge link also works as an invite.
+- First-touch attribution: invite code, UTM tags, challenge link.
+- `/admin/analytics`: daily active players and sign-ups, D1/D7/D30 retention cohorts, the funnel, per-game retention ("which game makes people stay"), and acquisition plus the viral loop.
+- A feedback button for players, read in `/admin/feedback`.
+- Sign-in, event and feedback rate limits.
+- The API refuses to boot with an unsafe production config.
+- A one-VPS deploy guide: [docs/deploy.md](docs/deploy.md).
 
 **Also in place:**
 - Auth: Google, plus dev-login

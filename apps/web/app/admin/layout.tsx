@@ -6,12 +6,15 @@ import { RequireAuth } from '@/components/RequireAuth';
 
 const items = [
   { href: '/admin', label: 'Dashboard' },
+  { href: '/admin/analytics', label: 'Analytics' },
   { href: '/admin/games', label: 'Games & Difficulty' },
   { href: '/admin/challenges', label: 'Challenges' },
   { href: '/admin/users', label: 'Users' },
+  { href: '/admin/invites', label: 'Invite codes' },
+  { href: '/admin/feedback', label: 'Feedback' },
   { href: '/admin/audit', label: 'Audit log' },
 ];
-const soon = ['Missions', 'Rewards', 'Subscriptions', 'Referrals', 'Campaigns', 'AI Content'];
+const soon = ['Missions', 'Rewards', 'Subscriptions', 'Campaigns', 'AI Content'];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();

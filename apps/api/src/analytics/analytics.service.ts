@@ -2,6 +2,7 @@ import { BadRequestException, Body, Controller, Global, Injectable, Logger, Modu
 import type { Prisma, User } from '@prisma/client';
 import { IsObject, IsOptional, IsString } from 'class-validator';
 import { CurrentUser, Public } from '../common/decorators';
+import { RateLimit } from '../common/rate-limit';
 import { PrismaService } from '../prisma/prisma.service';
 
 /** Events the browser may record. Server-side events (game_start, game_complete…) are emitted directly. */
@@ -35,6 +36,7 @@ export class AnalyticsController {
   constructor(private readonly analytics: AnalyticsService) {}
 
   @Public()
+  @RateLimit({ key: 'events', limit: 120, windowSeconds: 60 })
   @Post()
   track(@Body() dto: TrackEventDto, @CurrentUser() user?: User) {
     if (!CLIENT_EVENTS.has(dto.name)) throw new BadRequestException(`Unknown event "${dto.name}"`);

@@ -1,0 +1,3 @@
+# Closed beta: keep the site out of search engines for now.
+User-agent: *
+Disallow: /
