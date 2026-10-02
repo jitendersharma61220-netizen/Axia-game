@@ -1,5 +1,6 @@
 import { Controller, Get, Injectable, Module, NotFoundException, Param } from '@nestjs/common';
 import { GameStatus, Role, type DifficultyPreset, type Game, type User } from '@prisma/client';
+import { getTemplate } from '@axia/engine';
 import { dayKey } from '../common/time';
 import { CurrentUser, Public } from '../common/decorators';
 import { PrismaService } from '../prisma/prisma.service';
@@ -69,6 +70,7 @@ export class GamesService {
       name: game.name,
       description: game.description,
       templateKey: game.templateKey,
+      howToPlay: getTemplate(game.templateKey)?.howToPlay ?? [],
       estMinutes: game.estMinutes,
       attemptsPerDay: game.attemptsPerDay,
       attemptsLeft: user ? Math.max(0, game.attemptsPerDay - (await this.attemptsUsed(user.id, game.id))) : null,

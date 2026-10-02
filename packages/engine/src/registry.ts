@@ -1,10 +1,18 @@
 import { z } from 'zod';
+import { digitalDetective } from './templates/digital-detective';
+import { internetCafeMission } from './templates/internet-cafe-mission';
 import { memoryReconstruction } from './templates/memory-reconstruction';
+import { neuralBoss } from './templates/neural-boss';
+import { ruleShift } from './templates/rule-shift';
 import type { AnyGameTemplate } from './types';
 
 /** Every playable template. Register new games here. */
 export const templates: Record<string, AnyGameTemplate> = {
   [memoryReconstruction.key]: memoryReconstruction,
+  [ruleShift.key]: ruleShift,
+  [digitalDetective.key]: digitalDetective,
+  [neuralBoss.key]: neuralBoss,
+  [internetCafeMission.key]: internetCafeMission,
 };
 
 export function getTemplate(key: string): AnyGameTemplate | undefined {
@@ -15,6 +23,7 @@ export interface TemplateDescriptor {
   key: string;
   name: string;
   description: string;
+  howToPlay: string[];
   defaultParams: unknown;
   /** JSON Schema of the params, used by the admin panel to render an editor. */
   paramsJsonSchema: unknown;
@@ -25,6 +34,7 @@ export function describeTemplate(t: AnyGameTemplate): TemplateDescriptor {
     key: t.key,
     name: t.name,
     description: t.description,
+    howToPlay: t.howToPlay,
     defaultParams: t.defaultParams,
     paramsJsonSchema: z.toJSONSchema(t.paramsSchema, { unrepresentable: 'any' }),
   };

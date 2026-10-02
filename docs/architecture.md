@@ -47,6 +47,19 @@ The next session therefore uses the new settings, with no deploy or restart.
 
    "TOP x%" means rank divided by the number of players. `pnpm --filter @axia/api leaderboard:rebuild` rebuilds the boards from Postgres.
 
+### What the browser gets to see
+
+| Game | Answers sent to the browser? | Why |
+| --- | --- | --- |
+| Digital Detective | No: the culprit stays on the server | There is no instant feedback, so nothing needs to leak |
+| Internet Café Mission | No: the bill total, password option index and target file id stay on the server | Same reason |
+| Memory Reconstruction | Yes, by nature | The player must see the objects |
+| Rule Shift, Neural Boss | Yes | Instant ✓/✗ feedback needs the answer on the client |
+
+In every case the server re-scores from the seed and the player's moves, and enforces timing bounds. A future hardening step for instant-feedback games: validate each answer through the API, without sending answers to the client.
+
+Neural Boss uses the same `fightStep()` from the engine on the client (for animation) and on the server (for replay), so both sides always agree on the fight.
+
 ## Auth
 
 - Google Identity Services issues an ID token, which the API verifies with `google-auth-library`.
@@ -63,6 +76,6 @@ These events are enough to compute D1/D7/D30 retention, completion rates and the
 
 ## What's next (per the roadmap)
 
-- Remaining 4 games: each is a new template + Phaser scene (see [adding-a-game.md](adding-a-game.md))
+- Scale to 20 games: each is a new template + Phaser scene (see [adding-a-game.md](adding-a-game.md))
 - Subscriptions/payments, rewards, referrals (after legal review)
 - AI content pipeline: generator → validation (template `paramsSchema` / content schema) → admin approval → pool

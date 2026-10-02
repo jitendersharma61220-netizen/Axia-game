@@ -8,10 +8,19 @@ export interface SessionTiming {
   durationMs: number;
 }
 
+export interface ScoreHighlight {
+  label: string;
+  value: string;
+}
+
 export interface ScoreResult {
   score: number;
   maxScore: number;
   breakdown: Record<string, number>;
+  /** Up to three headline stats for the result screen. */
+  highlights: ScoreHighlight[];
+  /** Optional per-round explanations, e.g. who the culprit really was. */
+  notes?: string[];
 }
 
 export interface TimingBounds {
@@ -33,6 +42,8 @@ export interface GameTemplate<Params = unknown, Level = unknown, ClientLevel = u
   key: string;
   name: string;
   description: string;
+  /** Short, player-facing instructions shown before the game starts. */
+  howToPlay: string[];
   paramsSchema: z.ZodType<Params>;
   submissionSchema: z.ZodType<Submission>;
   defaultParams: Params;
@@ -46,3 +57,15 @@ export interface GameTemplate<Params = unknown, Level = unknown, ClientLevel = u
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type AnyGameTemplate = GameTemplate<any, any, any, any>;
+
+/** Scales raw points onto 0–MAX_SCORE, clamped. */
+export function normalizeScore(raw: number, maxRaw: number): number {
+  if (maxRaw <= 0) return 0;
+  return Math.min(MAX_SCORE, Math.max(0, Math.round((raw / maxRaw) * MAX_SCORE)));
+}
+
+/** Clamped 0..1 share of the time limit left, used for speed bonuses. */
+export function speedFactor(ms: number, limitMs: number): number {
+  if (limitMs <= 0 || ms > limitMs) return 0;
+  return 1 - Math.max(0, ms) / limitMs;
+}

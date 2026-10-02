@@ -13,6 +13,7 @@ export interface GameSummary {
   name: string;
   description: string;
   templateKey: string;
+  howToPlay: string[];
   estMinutes: number;
   attemptsPerDay: number;
   attemptsLeft: number | null;
@@ -53,6 +54,8 @@ export interface SessionResult {
   score: number;
   maxScore: number;
   breakdown: Record<string, number>;
+  highlights: { label: string; value: string }[];
+  notes: string[];
   durationMs: number;
   fraudFlags: string[];
   leaderboard: RankInfo | null;

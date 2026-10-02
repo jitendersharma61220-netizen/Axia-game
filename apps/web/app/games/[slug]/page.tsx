@@ -124,9 +124,9 @@ function Play() {
         <h1 className="text-3xl font-black">{game.name}</h1>
         <p className="text-muted">{game.description}</p>
         <ol className="list-decimal space-y-1 pl-5 text-sm text-muted">
-          <li>Objects appear on the grid — memorise them.</li>
-          <li>They vanish. Tap an object in the tray, then tap its cell.</li>
-          <li>Watch out for decoys that were never shown. Faster = bonus points.</li>
+          {game.howToPlay.map((step) => (
+            <li key={step}>{step}</li>
+          ))}
         </ol>
 
         {challengeId ? (
