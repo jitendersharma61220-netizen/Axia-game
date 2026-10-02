@@ -1,0 +1,108 @@
+'use client';
+
+import Link from 'next/link';
+import { useState } from 'react';
+import { track } from '@/lib/api';
+import type { SessionResult } from '@/lib/types';
+
+interface Props {
+  result: SessionResult;
+  gameName: string;
+  gameSlug: string;
+  /** Set when the player arrived from a friend's challenge link. */
+  rival?: { player: string; score: number } | null;
+  canPlayAgain: boolean;
+  onPlayAgain: () => void;
+}
+
+export function ResultScreen({ result, gameName, gameSlug, rival, canPlayAgain, onPlayAgain }: Props) {
+  const [copied, setCopied] = useState(false);
+  const rank = result.challengeLeaderboard ?? result.leaderboard;
+  const won = rival ? result.score > rival.score : null;
+  const flagged = result.status === 'FLAGGED';
+
+  const share = async () => {
+    const url = `${window.location.origin}/c/${result.sessionId}`;
+    const text = `I scored ${result.score}/${result.maxScore} on ${gameName}. Can you beat me?`;
+    track('share_click', { sessionId: result.sessionId, game: gameSlug });
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: 'Axia challenge', text, url });
+        return;
+      } catch {
+        // User cancelled or share failed: fall back to copying.
+      }
+    }
+    await navigator.clipboard?.writeText(`${text} ${url}`);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2500);
+  };
+
+  return (
+    <div className="card mx-auto max-w-md text-center" data-testid="result">
+      {won !== null && (
+        <p className={`text-3xl font-black ${won ? 'text-good' : 'text-warn'}`}>
+          {won ? 'YOU WON!' : result.score === rival!.score ? 'IT’S A TIE!' : 'SO CLOSE!'}
+        </p>
+      )}
+      {rival && (
+        <p className="mt-1 text-sm text-muted">
+          {rival.player} scored {rival.score}
+        </p>
+      )}
+      <p className="mt-4 text-xs font-semibold uppercase tracking-widest text-muted">Your score</p>
+      <p className="text-7xl font-black" data-testid="score">
+        {result.score}
+        <span className="text-3xl text-muted">/{result.maxScore}</span>
+      </p>
+      {rank && !flagged && (
+        <p className="mt-2 text-2xl font-bold text-brand-2" data-testid="percentile">
+          {rank.rank === 1 ? '#1 · TOP SCORE' : `TOP ${rank.topPercent}%`}
+        </p>
+      )}
+      {rank && !flagged && (
+        <p className="text-sm text-muted">
+          Rank #{rank.rank} of {rank.total}
+          {result.isPersonalBest && ' · New personal best!'}
+        </p>
+      )}
+      {flagged && (
+        <p className="mt-3 rounded-lg bg-warn/10 p-3 text-sm text-warn">
+          This run finished faster than humanly possible, so it won’t count on the leaderboard.
+        </p>
+      )}
+
+      <div className="mt-5 grid grid-cols-3 gap-2 text-sm">
+        <Stat label="Correct" value={`${result.breakdown.correct}/${result.breakdown.totalObjects}`} />
+        <Stat label="Wrong" value={result.breakdown.wrong} />
+        <Stat label="Speed bonus" value={result.breakdown.timeBonus} />
+      </div>
+
+      <div className="mt-6 flex flex-col gap-2">
+        {!flagged && (
+          <button className="btn-primary py-3 text-lg" onClick={share}>
+            {rival ? 'Challenge another friend' : 'Challenge a friend'}
+          </button>
+        )}
+        {copied && <p className="text-sm text-good">Link copied. Send it to a friend!</p>}
+        <div className="grid grid-cols-2 gap-2">
+          <button className="btn-ghost" onClick={onPlayAgain} disabled={!canPlayAgain}>
+            Play again
+          </button>
+          <Link className="btn-ghost" href={`/leaderboard?game=${gameSlug}`}>
+            Leaderboard
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: string | number | undefined }) {
+  return (
+    <div className="rounded-lg border border-line p-2">
+      <p className="text-lg font-bold">{value ?? '–'}</p>
+      <p className="text-xs text-muted">{label}</p>
+    </div>
+  );
+}
