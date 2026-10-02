@@ -63,7 +63,7 @@ export default function AdminGameDetailPage() {
       <section className="space-y-4">
         <h2 className="text-xl font-bold">Difficulty presets</h2>
         {game.presets.map((p) => (
-          <PresetEditor key={p.id} gameId={game.id} preset={p} schema={template.paramsJsonSchema} onSaved={() => mutate()} />
+          <PresetEditor key={p.id} gameId={game.id} templateKey={game.templateKey} preset={p} schema={template.paramsJsonSchema} onSaved={() => mutate()} />
         ))}
         <NewPreset gameId={game.id} onCreated={() => mutate()} />
       </section>
@@ -186,12 +186,24 @@ function GameSettings({ game, onSaved }: { game: AdminGameDetail; onSaved: () =>
   );
 }
 
-function PresetEditor({ gameId, preset, schema, onSaved }: { gameId: string; preset: Preset; schema: JsonSchema; onSaved: () => void }) {
+function PresetEditor({
+  gameId,
+  templateKey,
+  preset,
+  schema,
+  onSaved,
+}: {
+  gameId: string;
+  templateKey: string;
+  preset: Preset;
+  schema: JsonSchema;
+  onSaved: () => void;
+}) {
   const [label, setLabel] = useState(preset.label);
   const [params, setParams] = useState(preset.params);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
-  const [preview, setPreview] = useState<{ level: Parameters<typeof LevelPreview>[0]['level'] } | null>(null);
+  const [preview, setPreview] = useState<{ level: unknown } | null>(null);
 
   useEffect(() => {
     setLabel(preset.label);
@@ -257,7 +269,7 @@ function PresetEditor({ gameId, preset, schema, onSaved }: { gameId: string; pre
         )}
         {msg && <span className={`text-sm ${msg.ok ? 'text-good' : 'text-bad'}`}>{msg.text}</span>}
       </div>
-      {preview && <LevelPreview level={preview.level} />}
+      {preview && <LevelPreview templateKey={templateKey} level={preview.level} />}
     </div>
   );
 }

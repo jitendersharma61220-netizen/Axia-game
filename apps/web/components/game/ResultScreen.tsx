@@ -73,10 +73,17 @@ export function ResultScreen({ result, gameName, gameSlug, rival, canPlayAgain, 
       )}
 
       <div className="mt-5 grid grid-cols-3 gap-2 text-sm">
-        <Stat label="Correct" value={`${result.breakdown.correct}/${result.breakdown.totalObjects}`} />
-        <Stat label="Wrong" value={result.breakdown.wrong} />
-        <Stat label="Speed bonus" value={result.breakdown.timeBonus} />
+        {result.highlights.map((h) => (
+          <Stat key={h.label} label={h.label} value={h.value} />
+        ))}
       </div>
+      {result.notes.length > 0 && (
+        <ul className="mt-4 space-y-1 rounded-lg border border-line p-3 text-left text-sm" data-testid="notes">
+          {result.notes.map((n, i) => (
+            <li key={i}>{n}</li>
+          ))}
+        </ul>
+      )}
 
       <div className="mt-6 flex flex-col gap-2">
         {!flagged && (
@@ -98,10 +105,10 @@ export function ResultScreen({ result, gameName, gameSlug, rival, canPlayAgain, 
   );
 }
 
-function Stat({ label, value }: { label: string; value: string | number | undefined }) {
+function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg border border-line p-2">
-      <p className="text-lg font-bold">{value ?? '–'}</p>
+      <p className="text-lg font-bold">{value}</p>
       <p className="text-xs text-muted">{label}</p>
     </div>
   );

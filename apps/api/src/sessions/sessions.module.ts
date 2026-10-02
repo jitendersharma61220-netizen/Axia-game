@@ -189,6 +189,8 @@ export class SessionsService {
       score: result.score,
       maxScore: result.maxScore,
       breakdown: result.breakdown,
+      highlights: result.highlights,
+      notes: result.notes ?? [],
       durationMs,
       fraudFlags,
       leaderboard: rank,

@@ -3,7 +3,7 @@
 import { useEffect, useRef } from 'react';
 import type PhaserNS from 'phaser';
 import { sceneFactories } from './scenes';
-import { HEIGHT, WIDTH } from './MemoryReconstructionScene';
+import { HEIGHT, WIDTH } from './ui';
 
 interface Props {
   templateKey: string;

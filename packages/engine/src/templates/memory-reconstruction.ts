@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { createRng } from '../prng';
-import { MAX_SCORE, type GameTemplate } from '../types';
+import { MAX_SCORE, normalizeScore, type GameTemplate } from '../types';
 
 export const DEFAULT_ICON_POOL = [
   '🍎', '🚗', '🐶', '⭐', '🎈', '🔑', '📚', '🎸', '⚽', '🌵',
@@ -75,6 +75,11 @@ export const memoryReconstruction: GameTemplate<MemoryParams, MemoryLevel, Memor
   key: 'memory-reconstruction',
   name: 'Memory Reconstruction',
   description: 'Objects flash on a grid, then vanish. Put every object back where it was.',
+  howToPlay: [
+    'Objects appear on the grid — memorise them.',
+    'They vanish. Tap an object in the tray, then tap its cell.',
+    'Watch out for decoys that were never shown. Faster = bonus points.',
+  ],
   paramsSchema: memoryParamsSchema,
   submissionSchema: memorySubmissionSchema,
   defaultParams: {
@@ -155,14 +160,19 @@ export const memoryReconstruction: GameTemplate<MemoryParams, MemoryLevel, Memor
     });
 
     const maxRaw = level.rounds.length * (params.objectCount * params.pointsPerCorrect + params.timeBonusMax);
-    const score = maxRaw === 0 ? 0 : Math.round((raw / maxRaw) * MAX_SCORE);
+    const totalObjects = level.rounds.length * params.objectCount;
     return {
-      score: Math.min(MAX_SCORE, Math.max(0, score)),
+      score: normalizeScore(raw, maxRaw),
       maxScore: MAX_SCORE,
+      highlights: [
+        { label: 'Correct', value: `${correct}/${totalObjects}` },
+        { label: 'Wrong', value: String(wrong) },
+        { label: 'Speed bonus', value: String(Math.round(timeBonus)) },
+      ],
       breakdown: {
         correct,
         wrong,
-        totalObjects: level.rounds.length * params.objectCount,
+        totalObjects,
         timeBonus: Math.round(timeBonus),
         rawPoints: Math.round(raw),
         maxRawPoints: maxRaw,

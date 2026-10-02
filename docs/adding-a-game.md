@@ -7,13 +7,26 @@ Adding game #2 (or #15) needs **no backend changes**. Sessions, scoring, attempt
    - `generateLevel(params, seed)` must be deterministic. Use `createRng(seed)`, never `Math.random`.
    - `toClientLevel` returns what the browser may see. Strip answers when the game allows it.
    - `submissionSchema` describes the player's moves, not their score.
-   - `score()` returns a 0–100 score plus a breakdown.
+   - `howToPlay` lists the short instructions shown on the game page.
+   - `score()` returns:
+     - a 0–100 score (use `normalizeScore`)
+     - a `breakdown` of numbers that is stored
+     - three `highlights` for the result screen
+     - optional `notes`, e.g. "it was Meera"
    - `timingBounds()` is used for anti-fraud.
 2. **Register it** in `packages/engine/src/registry.ts` and export it from `index.ts`. Add Vitest tests next to it.
-3. **Client scene**: add a Phaser scene factory in `apps/web/components/game/` and register it in `scenes.ts` under the same key. The scene receives the client level and calls `onComplete(submission)`.
+3. **Client scene**:
+   - Add a Phaser scene factory in `apps/web/components/game/` and register it in `scenes.ts` under the same key.
+   - The scene receives the client level and calls `onComplete(submission)`.
+   - Use the helpers in `ui.ts`: `label`, `button`, `TimerBar`, `clearScene`.
+   - Optionally, add a renderer in `components/admin/LevelPreview.tsx` so the admin "Preview level" button shows a readable summary. Without one, it shows JSON.
 4. **Launch it from the admin panel**:
    1. Go to `/admin/games` and create a game from the new template. It starts as DRAFT with a "Normal" preset.
    2. Add Easy/Hard presets and play-test (admins can play DRAFT games).
    3. Flip the status to LIVE.
 
-The result-screen breakdown currently shows Correct, Wrong and Speed bonus. If your template uses other breakdown keys, extend `ResultScreen`.
+The five existing templates are good references:
+- `rule-shift`: instant feedback
+- `digital-detective`: answers hidden from the client
+- `neural-boss`: logic shared by client and server
+- `internet-cafe-mission`: multi-stage, with a different UI per stage

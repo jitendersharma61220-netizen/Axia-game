@@ -3,7 +3,7 @@ import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { PrismaClient } from '@prisma/client';
 import Redis from 'ioredis';
-import { memoryReconstruction, type MemoryClientLevel } from '@axia/engine';
+import { memoryReconstruction, templates, type MemoryClientLevel } from '@axia/engine';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/setup';
 
@@ -273,5 +273,47 @@ describe('admin control center', () => {
       .post('/api/admin/games')
       .send({ slug: 'bad', name: 'Bad', description: 'x', templateKey: 'not-a-template' })
       .expect(400);
+  });
+});
+
+describe('every installed template', () => {
+  const emptySubmissions: Record<string, object> = {
+    'memory-reconstruction': { rounds: [] },
+    'rule-shift': { answers: [] },
+    'digital-detective': { cases: [] },
+    'neural-boss': { answers: [] },
+    'internet-cafe-mission': { stages: [] },
+  };
+
+  it('has an e2e submission fixture for each template', () => {
+    expect(Object.keys(emptySubmissions).sort()).toEqual(Object.keys(templates).sort());
+  });
+
+  it.each(Object.keys(templates))('%s: admin launches it, a player plays it, the server scores it', async (key) => {
+    const admin = await login('admin@test.local', 1990);
+    const slug = `${key}-e2e`;
+    await admin
+      .post('/api/admin/games')
+      .send({ slug, name: templates[key].name, description: 'e2e', templateKey: key, status: 'LIVE', ageModes: ['ADULT'] })
+      .expect(201);
+
+    const player = await login(`${key}@test.local`, 1990);
+    const game = await player.get(`/api/games/${slug}`).expect(200);
+    expect(game.body.howToPlay.length).toBeGreaterThan(0);
+
+    const start = await player.post(`/api/games/${slug}/sessions`).send({}).expect(201);
+    expect(start.body.level).toBeTruthy();
+    // Games without instant feedback must not leak their answers.
+    expect(JSON.stringify(start.body.level)).not.toMatch(/"(culprit|targetId)":/);
+
+    const { minMs } = templates[key].timingBounds(templates[key].defaultParams);
+    await age(start.body.sessionId, minMs + 1_000);
+    const res = await player
+      .post(`/api/sessions/${start.body.sessionId}/submit`)
+      .send({ submission: emptySubmissions[key] })
+      .expect(201);
+    expect(res.body.status).toBe('COMPLETED');
+    expect(res.body.score).toBe(0);
+    expect(res.body.highlights).toHaveLength(3);
   });
 });

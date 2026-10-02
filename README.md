@@ -19,7 +19,7 @@ cp apps/api/.env.example apps/api/.env
 cp apps/web/.env.example apps/web/.env.local
 pnpm --filter @axia/engine build
 pnpm db:migrate        # creates tables
-pnpm db:seed           # Memory Reconstruction + easy/medium/hard + today's challenges + admin@axia.local
+pnpm db:seed           # all 5 games × easy/medium/hard + today's challenges + admin@axia.local
 pnpm dev               # API on :4000, web on :3000
 ```
 
@@ -43,11 +43,22 @@ The API e2e tests need a running Postgres and Redis. They use a separate `axia_t
 
 ## Status
 
-This is the **foundation slice**:
+**All five launch games are playable end to end:**
+
+| Game | Type | What it tests |
+| --- | --- | --- |
+| Internet Café Mission | Long-form mission, 15–30 min | A nostalgic 2003 café. Stages: CAPTCHA, dial-up sequence, café bill, file hunt, password recall |
+| Digital Detective | Deduction, 10–20 min | Clues and suspects. Exactly one suspect matches every clue |
+| Memory Reconstruction | Memory, 5–10 min | Objects flash on a grid; the player rebuilds it |
+| Rule Shift | Cognitive flexibility, 5–10 min | Sort cards by a hidden rule that keeps changing |
+| Neural Boss | Speed / mental math, 5–15 min | A boss fight powered by rapid-fire puzzles |
+
+Every game has easy, medium and hard presets in the seed, and every setting can be edited in `/admin`.
+
+**Also in place:**
 - Auth: Google, plus dev-login
 - Age gating: self-declared, 14–18 TEEN, 19+ ADULT
 - Config-driven game engine
-- Memory Reconstruction, playable end to end
 - Server-authoritative scoring with basic anti-fraud checks
 - Daily and weekly challenges
 - Leaderboards with rank and TOP x%
@@ -62,7 +73,6 @@ This is the **foundation slice**:
 - Referrals
 - Missions
 - AI content pipeline
-- The other four launch games
 - Notifications
 
 Paid access and rewards must be classified by a lawyer under India's gaming framework (Phase 0) before they are built. The pages for these features are "coming soon" stubs.
