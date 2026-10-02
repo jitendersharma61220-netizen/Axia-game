@@ -1,5 +1,6 @@
 import type PhaserNS from 'phaser';
-import { bossPhase, fightStep, initialFight, questionTimeFor, type FightState, type NeuralBossClientLevel, type NeuralBossSubmission } from '@axia/engine';
+import { bossPhase, initialFight, questionTimeFor, type FightState, type NeuralBossClientLevel, type NeuralBossSubmission } from '@axia/engine';
+import type { GameServer } from './scenes';
 import { C, TimerBar, WIDTH, button, clearScene, label, type Button } from './ui';
 
 type PhaserLib = typeof PhaserNS;
@@ -12,6 +13,7 @@ export function createNeuralBossScene(
   Phaser: PhaserLib,
   level: NeuralBossClientLevel,
   onComplete: (submission: NeuralBossSubmission) => void,
+  server: GameServer,
 ) {
   return class NeuralBossScene extends Phaser.Scene {
     private state: FightState = initialFight(level);
@@ -75,21 +77,31 @@ export function createNeuralBossScene(
       this.timer.start(this.allowed(), () => this.answer(null));
     }
 
-    private answer(choice: number | null) {
+    private async answer(choice: number | null) {
       if (this.locked) return;
       this.locked = true;
       const allowed = this.allowed();
       const ms = choice === null ? allowed + 1 : Math.min(this.timer.elapsed(), allowed);
       this.timer.stop();
-      const q = level.questions[this.qIndex];
       const answer = { choice, ms };
       this.answers.push(answer);
-      const { state, hit } = fightStep(this.state, q, answer, level, level.questions.length);
-      this.state = state;
+      this.options.forEach((b) => b.setEnabled(false));
+      if (choice !== null) this.options[choice].setFill(0x2a3358);
 
-      this.options[q.answer].setFill(0x14532d);
-      if (choice !== null && !hit) this.options[choice].setFill(0x7f1d1d);
-      if (hit) {
+      // The server holds the answers: it judges the hit and returns the new fight state.
+      let verdict: { hit: boolean; answer: number; state: FightState; done: boolean };
+      try {
+        verdict = (await server.step(this.qIndex, answer)) as typeof verdict;
+      } catch {
+        this.prompt.setText('Connection problem').setColor('#fbbf24');
+        this.time.delayedCall(1200, () => onComplete({ answers: this.answers }));
+        return;
+      }
+      this.state = verdict.state;
+
+      this.options[verdict.answer].setFill(0x14532d);
+      if (choice !== null && !verdict.hit) this.options[choice].setFill(0x7f1d1d);
+      if (verdict.hit) {
         this.tweens.add({ targets: this.boss, x: WIDTH / 2 + 14, yoyo: true, repeat: 3, duration: 50 });
         const dmg = label(this, WIDTH / 2 + 120, 150, `-${level.damagePerHit}`, 40, { color: '#f87171', fontStyle: 'bold' }).setOrigin(0.5);
         this.tweens.add({ targets: dmg, y: 90, alpha: 0, duration: 700, onComplete: () => dmg.destroy() });
@@ -101,8 +113,7 @@ export function createNeuralBossScene(
 
       this.time.delayedCall(550, () => {
         this.qIndex++;
-        if (!this.state.over) return this.nextQuestion();
-        this.options.forEach((b) => b.setEnabled(false));
+        if (!verdict.done) return this.nextQuestion();
         this.prompt.setText(this.state.won ? 'BOSS DEFEATED!' : 'YOU WERE DEFEATED');
         this.prompt.setColor(this.state.won ? '#34d399' : '#f87171');
         if (this.state.won) this.tweens.add({ targets: this.boss, alpha: 0, scale: 0.2, angle: 180, duration: 800 });

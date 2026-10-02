@@ -1,5 +1,6 @@
 import type PhaserNS from 'phaser';
 import type { RuleShiftCard, RuleShiftClientLevel, RuleShiftSubmission } from '@axia/engine';
+import type { GameServer } from './scenes';
 import { C, TimerBar, WIDTH, clearScene, label } from './ui';
 
 type PhaserLib = typeof PhaserNS;
@@ -14,10 +15,6 @@ export const RULE_SHIFT_LAYOUT = {
   pileX: (i: number) => 90 + i * 180,
   pile: { w: 160, h: 200 },
 };
-
-function pileFor(card: RuleShiftCard, rule: 'color' | 'shape' | 'count') {
-  return rule === 'color' ? card.color : rule === 'shape' ? card.shape : card.count - 1;
-}
 
 function drawSymbol(g: PhaserNS.GameObjects.Graphics, shape: number, x: number, y: number, s: number) {
   if (shape === 0) {
@@ -61,6 +58,7 @@ export function createRuleShiftScene(
   Phaser: PhaserLib,
   level: RuleShiftClientLevel,
   onComplete: (submission: RuleShiftSubmission) => void,
+  server: GameServer,
 ) {
   return class RuleShiftScene extends Phaser.Scene {
     private index = 0;
@@ -83,7 +81,7 @@ export function createRuleShiftScene(
       const trial = level.trials[this.index];
       const L = RULE_SHIFT_LAYOUT;
       label(this, WIDTH / 2, 36, `Card ${this.index + 1} of ${level.trials.length}`, 24, { color: C.muted }).setOrigin(0.5);
-      label(this, WIDTH / 2, 76, level.showRuleHint ? `Sort by ${RULE_LABEL[trial.rule]}` : 'Find the rule', 32, { fontStyle: 'bold' }).setOrigin(0.5);
+      label(this, WIDTH / 2, 76, trial.rule ? `Sort by ${RULE_LABEL[trial.rule]}` : 'Find the rule', 32, { fontStyle: 'bold' }).setOrigin(0.5);
       if (this.streak >= 3) label(this, WIDTH - 40, 36, `🔥 ${this.streak}`, 24).setOrigin(1, 0.5);
       this.timer = new TimerBar(this, 112);
       drawCard(this, trial, L.card.x, L.card.y, L.card.w, L.card.h);
@@ -98,36 +96,45 @@ export function createRuleShiftScene(
       this.timer.start(level.trialTimeLimitMs, () => this.answer(null));
     }
 
-    private answer(pile: number | null) {
+    private async answer(pile: number | null) {
       if (this.locked) return;
       this.locked = true;
       const ms = Math.min(this.timer.elapsed(), level.trialTimeLimitMs + (pile === null ? 0 : 1));
       this.timer.stop();
-      this.answers.push({ pile, ms });
-      const trial = level.trials[this.index];
-      const correct = pile !== null && pile === pileFor(trial, trial.rule);
-      this.streak = correct ? this.streak + 1 : 0;
+      const step = { pile, ms };
+      this.answers.push(step);
 
       const L = RULE_SHIFT_LAYOUT;
-      if (pile !== null) {
-        this.add
-          .rectangle(L.pileX(pile), L.pileY, L.pile.w + 10, L.pile.h + 10)
-          .setStrokeStyle(6, correct ? C.good : C.bad);
+      const highlight = pile !== null ? this.add.rectangle(L.pileX(pile), L.pileY, L.pile.w + 10, L.pile.h + 10).setStrokeStyle(6, 0x8b95b7) : null;
+      const status = label(this, WIDTH / 2, 545, pile === null ? '⏱ Too slow' : '…', 40, { fontStyle: 'bold', color: '#8b95b7' }).setOrigin(0.5);
+
+      // The server knows the hidden rule and judges the move.
+      let correct = false;
+      try {
+        const verdict = await server.step(this.index, step);
+        correct = verdict.correct === true;
+      } catch {
+        status.setText('Connection problem').setColor('#fbbf24');
+        this.time.delayedCall(1200, () => this.finish());
+        return;
       }
-      label(this, WIDTH / 2, 545, pile === null ? '⏱ Too slow' : correct ? '✓ Correct' : '✗ Wrong', 40, {
-        fontStyle: 'bold',
-        color: correct ? '#34d399' : '#f87171',
-      }).setOrigin(0.5);
+      this.streak = correct ? this.streak + 1 : 0;
+      highlight?.setStrokeStyle(6, correct ? C.good : C.bad);
+      if (pile !== null) status.setText(correct ? '✓ Correct' : '✗ Wrong');
+      status.setColor(correct ? '#34d399' : '#f87171');
 
       this.time.delayedCall(450, () => {
         this.index++;
         if (this.index < level.trials.length) this.showTrial();
-        else {
-          clearScene(this);
-          label(this, WIDTH / 2, 480, 'Scoring…', 36, { fontStyle: 'bold' }).setOrigin(0.5);
-          onComplete({ answers: this.answers });
-        }
+        else this.finish();
       });
+    }
+
+    private finish() {
+      clearScene(this);
+      label(this, WIDTH / 2, 480, 'Scoring…', 36, { fontStyle: 'bold' }).setOrigin(0.5);
+      // The server scores the moves it already judged; this payload is informational only.
+      onComplete({ answers: this.answers });
     }
   };
 }

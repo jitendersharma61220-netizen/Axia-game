@@ -6,15 +6,16 @@
  * Static summary of a generated level, so admins can see the effect of a
  * change before saving it. One small renderer per template, plus a JSON fallback.
  */
-export function LevelPreview({ templateKey, level }: { templateKey: string; level: any }) {
+export function LevelPreview({ templateKey, level, serverLevel }: { templateKey: string; level: any; serverLevel?: any }) {
   const render = previews[templateKey];
   if (!render) {
     return <pre className="max-h-64 overflow-auto rounded bg-ink p-3 text-xs text-muted">{JSON.stringify(level, null, 2)}</pre>;
   }
-  return <div className="space-y-2 text-sm">{render(level)}</div>;
+  return <div className="space-y-2 text-sm">{render(level, serverLevel ?? level)}</div>;
 }
 
-const previews: Record<string, (level: any) => React.ReactNode> = {
+/** `level` is what players receive; `full` is the admin-only server level including answers. */
+const previews: Record<string, (level: any, full: any) => React.ReactNode> = {
   'memory-reconstruction': (level) => {
     const round = level.rounds[0];
     const byCell = new Map<number, string>(round.placements.map((p: any) => [p.cell, p.icon]));
@@ -34,17 +35,17 @@ const previews: Record<string, (level: any) => React.ReactNode> = {
     );
   },
 
-  'rule-shift': (level) => {
+  'rule-shift': (level, full) => {
     const runs: { rule: string; n: number }[] = [];
-    for (const t of level.trials) {
+    for (const t of full.trials) {
       const last = runs[runs.length - 1];
       if (last?.rule === t.rule) last.n++;
       else runs.push({ rule: t.rule, n: 1 });
     }
     return (
       <p>
-        {level.trials.length} cards · rule sequence: <b>{runs.map((r) => `${r.rule}×${r.n}`).join(' → ')}</b>
-        {level.showRuleHint && ' · rule shown to player'}
+        {level.trials.length} cards · hidden rule sequence: <b>{runs.map((r) => `${r.rule}×${r.n}`).join(' → ')}</b>
+        {level.showRuleHint ? ' · rule shown to player (easy mode)' : ' · players never see it'}
       </p>
     );
   },
@@ -75,13 +76,13 @@ const previews: Record<string, (level: any) => React.ReactNode> = {
     );
   },
 
-  'neural-boss': (level) => (
+  'neural-boss': (level, full) => (
     <>
       <p>
-        Boss HP {level.bossHp} · lives {level.playerHp} · {level.questions.length} questions · first 5:
+        Boss HP {level.bossHp} · lives {level.playerHp} · {level.questions.length} questions · first 5 (answers are never sent to players):
       </p>
       <ol className="list-decimal pl-5 text-muted">
-        {level.questions.slice(0, 5).map((q: any, i: number) => (
+        {full.questions.slice(0, 5).map((q: any, i: number) => (
           <li key={i}>
             {q.prompt} <span className="text-good">→ {q.options[q.answer]}</span>
           </li>

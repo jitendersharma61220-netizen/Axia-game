@@ -303,8 +303,8 @@ describe('every installed template', () => {
 
     const start = await player.post(`/api/games/${slug}/sessions`).send({}).expect(201);
     expect(start.body.level).toBeTruthy();
-    // Games without instant feedback must not leak their answers.
-    expect(JSON.stringify(start.body.level)).not.toMatch(/"(culprit|targetId)":/);
+    // No game may leak its answers to the browser.
+    expect(JSON.stringify(start.body.level)).not.toMatch(/"(culprit|targetId|answer|rule)":/);
 
     const { minMs } = templates[key].timingBounds(templates[key].defaultParams);
     await age(start.body.sessionId, minMs + 1_000);

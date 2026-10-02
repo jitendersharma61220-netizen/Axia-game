@@ -14,6 +14,7 @@ Adding game #2 (or #15) needs **no backend changes**. Sessions, scoring, attempt
      - three `highlights` for the result screen
      - optional `notes`, e.g. "it was Meera"
    - `timingBounds()` is used for anti-fraud.
+   - If the game shows instant ✓/✗ feedback, implement `interactive` (`stepSchema`, `check`, `toSubmission`). The browser then never needs the answers: the scene calls `server.step(index, move)` and renders the verdict. See `rule-shift` and `neural-boss`.
 2. **Register it** in `packages/engine/src/registry.ts` and export it from `index.ts`. Add Vitest tests next to it.
 3. **Client scene**:
    - Add a Phaser scene factory in `apps/web/components/game/` and register it in `scenes.ts` under the same key.
@@ -26,7 +27,7 @@ Adding game #2 (or #15) needs **no backend changes**. Sessions, scoring, attempt
    3. Flip the status to LIVE.
 
 The five existing templates are good references:
-- `rule-shift`: instant feedback
+- `rule-shift`: instant feedback judged move by move on the server
 - `digital-detective`: answers hidden from the client
-- `neural-boss`: logic shared by client and server
+- `neural-boss`: server-side fight replay with per-answer verdicts
 - `internet-cafe-mission`: multi-stage, with a different UI per stage

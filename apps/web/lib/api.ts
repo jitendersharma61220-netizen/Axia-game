@@ -31,3 +31,18 @@ export const fetcher = <T,>(path: string) => api<T>(path);
 export function track(name: string, props?: Record<string, unknown>) {
   void api('/events', { body: { name, props } }).catch(() => undefined);
 }
+
+/** Server-side judging for instant-feedback games, with retries on network/server errors (never on 4xx). */
+export async function postStep<T = Record<string, unknown>>(sessionId: string, index: number, step: object): Promise<T> {
+  let lastErr: unknown;
+  for (const wait of [0, 500, 1000, 2000]) {
+    if (wait) await new Promise((r) => setTimeout(r, wait));
+    try {
+      return await api<T>(`/sessions/${sessionId}/steps`, { body: { index, step } });
+    } catch (err) {
+      lastErr = err;
+      if (err instanceof ApiError && err.status < 500) throw err;
+    }
+  }
+  throw lastErr;
+}

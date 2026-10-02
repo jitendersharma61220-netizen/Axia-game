@@ -5,6 +5,7 @@ import {
   Controller,
   ForbiddenException,
   GoneException,
+  HttpCode,
   HttpException,
   HttpStatus,
   Injectable,
@@ -17,7 +18,7 @@ import {
 import { Prisma, SessionStatus, type Challenge, type User } from '@prisma/client';
 import { getTemplate, validateParams } from '@axia/engine';
 import { randomUUID } from 'node:crypto';
-import { IsObject, IsOptional, IsString } from 'class-validator';
+import { IsInt, IsObject, IsOptional, IsString, Max, Min } from 'class-validator';
 import { CurrentUser } from '../common/decorators';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
@@ -35,6 +36,25 @@ class StartSessionDto {
   @IsOptional()
   @IsString()
   challengeId?: string;
+}
+
+const stepsKey = (sessionId: string) => `steps:${sessionId}`;
+const doneKey = (sessionId: string) => `steps:${sessionId}:done`;
+
+/** Moves arriving faster than a human can see, decide and tap (incl. network) point to a bot. */
+export const MIN_HUMAN_STEP_GAP_MS = 150;
+function hasInhumanGap(times: number[]) {
+  return times.some((t, i) => i > 0 && t - times[i - 1] < MIN_HUMAN_STEP_GAP_MS);
+}
+
+class StepDto {
+  @IsInt()
+  @Min(0)
+  @Max(1000)
+  index: number;
+
+  @IsObject()
+  step: Record<string, unknown>;
 }
 
 class SubmitDto {
@@ -131,25 +151,25 @@ export class SessionsService {
     const template = getTemplate(session.game.templateKey);
     if (!template) throw new InternalServerErrorException(`Template ${session.game.templateKey} is not installed`);
     const params = session.paramsSnapshot as unknown;
-    const parsed = template.submissionSchema.safeParse(rawSubmission);
+    // Instant-feedback games: the browser's submission is ignored; only moves the
+    // server judged one by one (POST /sessions/:id/steps) count.
+    const recorded = template.interactive ? await this.recordedSteps(session.id) : null;
+    const parsed = template.submissionSchema.safeParse(
+      recorded ? template.interactive!.toSubmission(recorded.map((r) => r.step)) : rawSubmission,
+    );
     if (!parsed.success) throw new BadRequestException({ code: 'INVALID_SUBMISSION', issues: parsed.error.issues });
 
     const now = new Date();
     const durationMs = now.getTime() - session.startedAt.getTime();
     const bounds = template.timingBounds(params);
-    if (durationMs > bounds.maxMs) {
-      await this.prisma.gameSession.updateMany({
-        where: { id: session.id, status: SessionStatus.STARTED },
-        data: { status: SessionStatus.EXPIRED, completedAt: now, durationMs },
-      });
-      throw new GoneException({ code: 'SESSION_EXPIRED', message: 'This session expired' });
-    }
+    if (durationMs > bounds.maxMs) await this.expire(session.id, now, durationMs);
 
     // Server-authoritative scoring: regenerate the level from the seed and re-score.
     const level = template.generateLevel(params, session.seed);
     const result = template.score(level, parsed.data, { durationMs }, params);
     const fraudFlags: string[] = [];
     if (durationMs < bounds.minMs) fraudFlags.push('too_fast');
+    if (recorded && hasInhumanGap(recorded.map((r) => r.at))) fraudFlags.push('too_fast_steps');
     const status = fraudFlags.length ? SessionStatus.FLAGGED : SessionStatus.COMPLETED;
 
     // Conditional update guards against double submits racing each other.
@@ -167,6 +187,7 @@ export class SessionsService {
       },
     });
     if (!count) throw new ConflictException({ code: 'ALREADY_SUBMITTED', message: 'Session already finished' });
+    if (recorded) await this.redis.del(stepsKey(session.id), doneKey(session.id));
 
     let rank: RankInfo | null = null;
     let challengeRank: RankInfo | null = null;
@@ -198,6 +219,57 @@ export class SessionsService {
       isPersonalBest: rank ? rank.best === result.score : false,
     };
   }
+
+  /** Judges one move of an instant-feedback game and records it. Moves must arrive in order, once each. */
+  async step(user: User, sessionId: string, index: number, rawStep: unknown) {
+    const session = await this.prisma.gameSession.findUnique({ where: { id: sessionId }, include: { game: true } });
+    if (!session || session.userId !== user.id) throw new NotFoundException('Session not found');
+    if (session.status !== SessionStatus.STARTED) throw new ConflictException({ code: 'ALREADY_SUBMITTED', message: 'Session already finished' });
+    const template = getTemplate(session.game.templateKey);
+    if (!template?.interactive) throw new BadRequestException({ code: 'NOT_INTERACTIVE', message: 'This game does not use step checking' });
+
+    const params = session.paramsSnapshot as unknown;
+    const now = new Date();
+    const durationMs = now.getTime() - session.startedAt.getTime();
+    if (durationMs > template.timingBounds(params).maxMs) await this.expire(session.id, now, durationMs);
+
+    const parsed = template.interactive.stepSchema.safeParse(rawStep);
+    if (!parsed.success) throw new BadRequestException({ code: 'INVALID_STEP', issues: parsed.error.issues });
+
+    if (await this.redis.exists(doneKey(session.id))) throw new ConflictException({ code: 'GAME_OVER', message: 'No more moves in this game' });
+    const recorded = await this.recordedSteps(session.id);
+    if (index !== recorded.length) {
+      throw new ConflictException({ code: 'OUT_OF_ORDER', message: `Expected move ${recorded.length}, got ${index}` });
+    }
+
+    const level = template.generateLevel(params, session.seed);
+    const verdict = template.interactive.check(level, params, index, parsed.data, recorded.map((r) => r.step));
+
+    // HSETNX makes each move write-once, even if two requests race for the same index.
+    const ttl = Math.ceil(template.timingBounds(params).maxMs / 1000) + 3600;
+    const stored = await this.redis.hsetnx(stepsKey(session.id), String(index), JSON.stringify({ step: parsed.data, at: now.getTime() }));
+    if (!stored) throw new ConflictException({ code: 'OUT_OF_ORDER', message: `Move ${index} was already recorded` });
+    await this.redis.expire(stepsKey(session.id), ttl);
+    if (verdict.done) await this.redis.set(doneKey(session.id), '1', 'EX', ttl);
+
+    return { index, done: verdict.done, ...verdict.feedback };
+  }
+
+  private async recordedSteps(sessionId: string): Promise<{ step: unknown; at: number }[]> {
+    const all = await this.redis.hgetall(stepsKey(sessionId));
+    return Object.entries(all)
+      .map(([i, v]) => ({ i: Number(i), ...(JSON.parse(v) as { step: unknown; at: number }) }))
+      .sort((a, b) => a.i - b.i)
+      .map(({ step, at }) => ({ step, at }));
+  }
+
+  private async expire(sessionId: string, now: Date, durationMs: number): Promise<never> {
+    await this.prisma.gameSession.updateMany({
+      where: { id: sessionId, status: SessionStatus.STARTED },
+      data: { status: SessionStatus.EXPIRED, completedAt: now, durationMs },
+    });
+    throw new GoneException({ code: 'SESSION_EXPIRED', message: 'This session expired' });
+  }
 }
 
 @Controller()
@@ -207,6 +279,12 @@ export class SessionsController {
   @Post('games/:slug/sessions')
   start(@CurrentUser() user: User, @Param('slug') slug: string, @Body() dto: StartSessionDto) {
     return this.sessions.start(user, slug, dto);
+  }
+
+  @Post('sessions/:id/steps')
+  @HttpCode(200)
+  step(@CurrentUser() user: User, @Param('id') id: string, @Body() dto: StepDto) {
+    return this.sessions.step(user, id, dto.index, dto.step);
   }
 
   @Post('sessions/:id/submit')

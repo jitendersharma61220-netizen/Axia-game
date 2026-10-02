@@ -203,7 +203,7 @@ function PresetEditor({
   const [params, setParams] = useState(preset.params);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
-  const [preview, setPreview] = useState<{ level: unknown } | null>(null);
+  const [preview, setPreview] = useState<{ level: unknown; serverLevel?: unknown } | null>(null);
 
   useEffect(() => {
     setLabel(preset.label);
@@ -269,7 +269,7 @@ function PresetEditor({
         )}
         {msg && <span className={`text-sm ${msg.ok ? 'text-good' : 'text-bad'}`}>{msg.text}</span>}
       </div>
-      {preview && <LevelPreview templateKey={templateKey} level={preview.level} />}
+      {preview && <LevelPreview templateKey={templateKey} level={preview.level} serverLevel={preview.serverLevel} />}
     </div>
   );
 }

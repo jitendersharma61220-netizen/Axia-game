@@ -97,11 +97,14 @@ export class AdminGamesController {
     if (!v.ok) throw new BadRequestException({ code: 'INVALID_PARAMS', errors: v.errors });
     const template = getTemplate(game.templateKey)!;
     const seed = dto.seed ?? randomUUID();
+    const level = template.generateLevel(v.params, seed);
     return {
       seed,
       params: v.params,
       timingBounds: template.timingBounds(v.params),
-      level: template.toClientLevel(template.generateLevel(v.params, seed), v.params),
+      level: template.toClientLevel(level, v.params),
+      /** Admin-only: the full level incl. answers (hidden rules, correct options), for checking content. */
+      serverLevel: level,
     };
   }
 

@@ -64,3 +64,32 @@ describe('rule-shift', () => {
     expect(validateParams('rule-shift', { rules: ['color'] }).ok).toBe(false);
   });
 });
+
+describe('rule-shift server-side checking', () => {
+  it('keeps the hidden rule out of the client level (unless easy mode shows it)', () => {
+    const level = t.generateLevel(params, 'hidden');
+    expect(JSON.stringify(t.toClientLevel(level, params))).not.toContain('"rule"');
+    const easy = { ...params, showRuleHint: true };
+    expect(t.toClientLevel(level, easy).trials[0].rule).toBe(level.trials[0].rule);
+  });
+
+  it('judges each move exactly as the final score does', () => {
+    const level = t.generateLevel(params, 'steps');
+    const steps = level.trials.map((x, i) => ({ pile: i % 3 === 0 ? (pileFor(x, x.rule) + 1) % 4 : pileFor(x, x.rule), ms: 400 }));
+    let correct = 0;
+    steps.forEach((s, i) => {
+      const v = t.interactive!.check(level, params, i, s, steps.slice(0, i));
+      if (v.feedback.correct) correct++;
+      expect(v.done).toBe(i === steps.length - 1);
+    });
+    const res = t.score(level, t.interactive!.toSubmission(steps), { durationMs: 0 }, params);
+    expect(res.breakdown.correct).toBe(correct);
+  });
+
+  it('treats a late or missing answer as a timeout', () => {
+    const level = t.generateLevel(params, 'late');
+    const x = level.trials[0];
+    expect(t.interactive!.check(level, params, 0, { pile: pileFor(x, x.rule), ms: params.trialTimeLimitMs + 1 }, []).feedback).toMatchObject({ correct: false, timedOut: true });
+    expect(t.interactive!.check(level, params, 0, { pile: null, ms: 10 }, []).feedback.timedOut).toBe(true);
+  });
+});

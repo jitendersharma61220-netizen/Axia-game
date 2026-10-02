@@ -65,3 +65,31 @@ describe('neural-boss', () => {
     expect(s.won).toBe(false);
   });
 });
+
+describe('neural-boss server-side checking', () => {
+  it('keeps the correct answers out of the client level', () => {
+    const level = t.generateLevel(params, 'hidden');
+    const client = t.toClientLevel(level, params);
+    expect(client.questions[0]).not.toHaveProperty('answer');
+    expect(JSON.stringify(client)).not.toContain('"answer"');
+  });
+
+  it('replays the fight move by move and agrees with the final score', () => {
+    const level = t.generateLevel(params, 'fight');
+    const steps: { choice: number | null; ms: number }[] = [];
+    let last;
+    for (let i = 0; i < level.questions.length; i++) {
+      const q = level.questions[i];
+      const step = { choice: i % 4 === 1 ? (q.answer + 1) % 4 : q.answer, ms: 800 };
+      last = t.interactive!.check(level, params, i, step, steps);
+      expect(last.feedback.answer).toBe(q.answer);
+      steps.push(step);
+      if (last.done) break;
+    }
+    const state = last!.feedback.state as { bossHp: number; playerHp: number; won: boolean };
+    const res = t.score(level, t.interactive!.toSubmission(steps), { durationMs: 0 }, params);
+    expect(res.breakdown.bossHpLeft).toBe(state.bossHp);
+    expect(res.breakdown.livesLeft).toBe(state.playerHp);
+    expect(res.breakdown.won).toBe(state.won ? 1 : 0);
+  });
+});
