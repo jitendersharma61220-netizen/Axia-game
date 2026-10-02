@@ -57,6 +57,20 @@ docker compose -f deploy/docker-compose.prod.yml --env-file deploy/.env exec api
 
 Then open `https://play.yourbrand.in`. Caddy fetches the HTTPS certificate on the first visit.
 
+**Check the live site.** Run this from the server or from your laptop:
+```bash
+bash deploy/check.sh play.yourbrand.in
+```
+It runs 10 checks:
+- HTTPS and the HTTP → HTTPS redirect
+- API health, and that all 5 games are live
+- security headers and `robots.txt`
+- dev login is off
+- the Google client ID is built into the site
+- fake sign-in tokens are rejected
+
+Every check should show ✅. A ❌ names what to fix (see Troubleshooting below).
+
 ## 6. First sign-in and invite codes
 1. Sign in with Google using the `ADMIN_EMAILS` address, then open **Admin → Invite codes**.
 2. Create one code per group (college, creator, WhatsApp group, office) with a sensible **max uses**.
