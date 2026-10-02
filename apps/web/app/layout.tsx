@@ -26,7 +26,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <Link href="/pricing">Pricing</Link>
               <Link href="/referral">Referral</Link>
               <Link href="/account">Account</Link>
-              <span>Terms · Privacy · Refunds (pending legal review)</span>
+              <Link href="/terms">Terms</Link>
+              <Link href="/privacy">Privacy</Link>
+              <Link href="/refunds">Refunds</Link>
             </div>
           </footer>
           <FeedbackButton />
