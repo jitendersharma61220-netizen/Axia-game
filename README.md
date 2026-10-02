@@ -1,5 +1,7 @@
 # Axia — Skill-Game Platform
 
+[![CI](https://github.com/jitendersharma61220-netizen/Axia-game/actions/workflows/ci.yml/badge.svg)](https://github.com/jitendersharma61220-netizen/Axia-game/actions/workflows/ci.yml)
+
 Short skill games with daily challenges, leaderboards, and "challenge a friend" sharing. Games are **driven by config, not hard-coded**: difficulty, timings, content pools, attempts, availability, and challenges are all changed from the admin panel and take effect on the next game, with no redeploy.
 
 | Path | What it is |
@@ -38,6 +40,11 @@ Open http://localhost:3000. With `ALLOW_DEV_LOGIN=true` you can sign in with any
 pnpm typecheck
 pnpm test        # engine unit tests (Vitest) + API e2e tests (Jest + supertest)
 ```
+
+**CI:** GitHub Actions (`.github/workflows/ci.yml`) runs on every pull request and on every push to `main`. It has three parallel checks:
+- typecheck + engine tests
+- API e2e tests against Postgres 16 and Redis 7 service containers
+- the web build
 
 The API e2e tests need a running Postgres and Redis. They use a separate `axia_test` database and Redis DB 15 (override with `TEST_DATABASE_URL` / `TEST_REDIS_URL`).
 
