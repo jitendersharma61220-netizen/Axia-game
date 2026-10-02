@@ -53,6 +53,27 @@ export interface GameTemplate<Params = unknown, Level = unknown, ClientLevel = u
   toClientLevel(level: Level, params: Params): ClientLevel;
   timingBounds(params: Params): TimingBounds;
   score(level: Level, submission: Submission, timing: SessionTiming, params: Params): ScoreResult;
+  /**
+   * Games with instant ✓/✗ feedback implement this so the browser never holds the
+   * answers: each move is sent to the server, which judges it and records it. The
+   * final score is computed only from those recorded moves.
+   */
+  interactive?: InteractiveSpec<Params, Level, Submission>;
+}
+
+export interface StepVerdict {
+  /** Sent back to the browser for this move (e.g. correct / boss hit + new HP). */
+  feedback: Record<string, unknown>;
+  /** No further moves are accepted after this one. */
+  done: boolean;
+}
+
+export interface InteractiveSpec<Params = unknown, Level = unknown, Submission = unknown, Step = any> {
+  stepSchema: z.ZodType<Step>;
+  /** Judge move `index`, given every earlier recorded move. Must agree with score(). */
+  check(level: Level, params: Params, index: number, step: Step, previous: Step[]): StepVerdict;
+  /** Turns the recorded moves into the submission that score() expects. */
+  toSubmission(steps: Step[]): Submission;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

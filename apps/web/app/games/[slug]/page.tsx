@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import useSWR from 'swr';
-import { api, ApiError, fetcher } from '@/lib/api';
+import { api, ApiError, fetcher, postStep } from '@/lib/api';
 import type { GameSummary, SessionResult, StartedSession } from '@/lib/types';
 import { useAuth } from '@/components/AuthProvider';
 import { ResultScreen } from '@/components/game/ResultScreen';
@@ -88,7 +88,12 @@ function Play() {
           <span>{state.session.game.name}</span>
           <span>{state.session.challenge?.title ?? state.session.difficulty.label}</span>
         </div>
-        <PhaserGame templateKey={state.session.game.templateKey} level={state.session.level} onComplete={onComplete} />
+        <PhaserGame
+          templateKey={state.session.game.templateKey}
+          level={state.session.level}
+          onComplete={onComplete}
+          server={{ step: (index, step) => postStep(state.session.sessionId, index, step) }}
+        />
         {state.kind === 'submitting' && <p className="mt-3 text-center text-muted">Scoring…</p>}
       </div>
     );

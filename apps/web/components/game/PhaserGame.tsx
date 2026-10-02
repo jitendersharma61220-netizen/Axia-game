@@ -2,19 +2,22 @@
 
 import { useEffect, useRef } from 'react';
 import type PhaserNS from 'phaser';
-import { sceneFactories } from './scenes';
+import { sceneFactories, type GameServer } from './scenes';
 import { HEIGHT, WIDTH } from './ui';
 
 interface Props {
   templateKey: string;
   level: unknown;
   onComplete: (submission: unknown) => void;
+  server: GameServer;
 }
 
-export function PhaserGame({ templateKey, level, onComplete }: Props) {
+export function PhaserGame({ templateKey, level, onComplete, server }: Props) {
   const parent = useRef<HTMLDivElement>(null);
   const done = useRef(onComplete);
   done.current = onComplete;
+  const srv = useRef(server);
+  srv.current = server;
 
   useEffect(() => {
     let game: PhaserNS.Game | undefined;
@@ -31,7 +34,7 @@ export function PhaserGame({ templateKey, level, onComplete }: Props) {
         height: HEIGHT,
         backgroundColor: '#0b1020',
         scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
-        scene: factory(Phaser, level, (s) => done.current(s)),
+        scene: factory(Phaser, level, (s) => done.current(s), { step: (i, st) => srv.current.step(i, st) }),
       });
     })();
     return () => {

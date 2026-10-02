@@ -54,17 +54,21 @@ export interface RuleShiftLevel {
   trials: RuleShiftTrial[];
 }
 
-export interface RuleShiftClientLevel extends RuleShiftLevel {
+export interface RuleShiftClientLevel {
+  /** The rule is only included when showRuleHint is on (easy mode); otherwise it stays on the server. */
+  trials: (RuleShiftCard & { rule?: Rule })[];
   piles: RuleShiftCard[];
   showRuleHint: boolean;
   trialTimeLimitMs: number;
 }
 
+const ruleShiftStepSchema = z.object({ pile: z.number().int().min(0).max(3).nullable(), ms: z.number().int().min(0) });
+
 export const ruleShiftSubmissionSchema = z.object({
-  answers: z
-    .array(z.object({ pile: z.number().int().min(0).max(3).nullable(), ms: z.number().int().min(0) }))
-    .max(100),
+  answers: z.array(ruleShiftStepSchema).max(100),
 });
+
+export type RuleShiftStep = z.infer<typeof ruleShiftStepSchema>;
 
 export type RuleShiftSubmission = z.infer<typeof ruleShiftSubmissionSchema>;
 
@@ -112,9 +116,24 @@ export const ruleShift: GameTemplate<RuleShiftParams, RuleShiftLevel, RuleShiftC
   },
 
   toClientLevel(level, params) {
-    // Instant ✓/✗ feedback needs the rule on the client; integrity relies on
-    // timing checks and server-side re-scoring.
-    return { ...level, piles: RULE_SHIFT_PILES, showRuleHint: params.showRuleHint, trialTimeLimitMs: params.trialTimeLimitMs };
+    // The hidden rule never leaves the server (unless easy mode shows it on purpose);
+    // each sort is judged through `interactive.check`.
+    return {
+      trials: level.trials.map(({ rule, ...card }) => (params.showRuleHint ? { ...card, rule } : card)),
+      piles: RULE_SHIFT_PILES,
+      showRuleHint: params.showRuleHint,
+      trialTimeLimitMs: params.trialTimeLimitMs,
+    };
+  },
+
+  interactive: {
+    stepSchema: ruleShiftStepSchema,
+    check(level, params, index, step) {
+      const trial = level.trials[index];
+      const correct = step.pile !== null && step.ms <= params.trialTimeLimitMs && step.pile === pileFor(trial, trial.rule);
+      return { feedback: { correct, timedOut: step.pile === null || step.ms > params.trialTimeLimitMs }, done: index === level.trials.length - 1 };
+    },
+    toSubmission: (steps) => ({ answers: steps }),
   },
 
   timingBounds(params) {

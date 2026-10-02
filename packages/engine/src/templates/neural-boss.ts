@@ -29,7 +29,9 @@ export interface NeuralBossLevel {
   questions: BossQuestion[];
 }
 
-export interface NeuralBossClientLevel extends NeuralBossLevel {
+export interface NeuralBossClientLevel {
+  /** Prompts and options only; the correct option is revealed by the server after each answer. */
+  questions: Omit<BossQuestion, 'answer'>[];
   bossHp: number;
   playerHp: number;
   damagePerHit: number;
@@ -37,9 +39,13 @@ export interface NeuralBossClientLevel extends NeuralBossLevel {
   phaseSpeedup: number;
 }
 
+const neuralBossStepSchema = z.object({ choice: z.number().int().min(0).max(3).nullable(), ms: z.number().int().min(0) });
+
 export const neuralBossSubmissionSchema = z.object({
-  answers: z.array(z.object({ choice: z.number().int().min(0).max(3).nullable(), ms: z.number().int().min(0) })).max(100),
+  answers: z.array(neuralBossStepSchema).max(100),
 });
+
+export type NeuralBossStep = z.infer<typeof neuralBossStepSchema>;
 
 export type NeuralBossSubmission = z.infer<typeof neuralBossSubmissionSchema>;
 
@@ -173,15 +179,31 @@ export const neuralBoss: GameTemplate<NeuralBossParams, NeuralBossLevel, NeuralB
   },
 
   toClientLevel(level, params) {
-    // Answers are included for instant hit/miss feedback; the server replays the fight.
+    // Answers stay on the server; each answer is judged through `interactive.check`.
     return {
-      ...level,
+      questions: level.questions.map(({ answer: _answer, ...q }) => q),
       bossHp: params.bossHp,
       playerHp: params.playerHp,
       damagePerHit: params.damagePerHit,
       questionTimeMs: params.questionTimeMs,
       phaseSpeedup: params.phaseSpeedup,
     };
+  },
+
+  interactive: {
+    stepSchema: neuralBossStepSchema,
+    check(level, params, index, step, previous) {
+      let state = initialFight(params);
+      previous.forEach((p, i) => {
+        state = fightStep(state, level.questions[i], p, params, level.questions.length).state;
+      });
+      const result = fightStep(state, level.questions[index], step, params, level.questions.length);
+      return {
+        feedback: { hit: result.hit, answer: level.questions[index].answer, state: result.state },
+        done: result.state.over,
+      };
+    },
+    toSubmission: (steps) => ({ answers: steps }),
   },
 
   timingBounds(params) {

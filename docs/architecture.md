@@ -49,16 +49,28 @@ The next session therefore uses the new settings, with no deploy or restart.
 
 ### What the browser gets to see
 
-| Game | Answers sent to the browser? | Why |
+| Game | Answers sent to the browser? | How it stays honest |
 | --- | --- | --- |
-| Digital Detective | No: the culprit stays on the server | There is no instant feedback, so nothing needs to leak |
-| Internet Café Mission | No: the bill total, password option index and target file id stay on the server | Same reason |
-| Memory Reconstruction | Yes, by nature | The player must see the objects |
-| Rule Shift, Neural Boss | Yes | Instant ✓/✗ feedback needs the answer on the client |
+| Digital Detective | No: the culprit stays on the server | No instant feedback is needed; the server scores at the end |
+| Internet Café Mission | No: the bill total, password option index and target file id stay on the server | Same |
+| Rule Shift | No: the hidden rule stays on the server (easy mode shows it on purpose) | Each sort is judged by `POST /sessions/:id/steps` |
+| Neural Boss | No: correct options stay on the server | Each answer is judged by `POST /sessions/:id/steps`; the server replays the fight and returns the new HP |
+| Memory Reconstruction | Yes, by nature | The player must see the objects; scoring and timing checks happen on the server |
 
-In every case the server re-scores from the seed and the player's moves, and enforces timing bounds. A future hardening step for instant-feedback games: validate each answer through the API, without sending answers to the client.
+**Instant-feedback games** implement `interactive` on their template (`packages/engine/src/types.ts`). Every move flow works like this:
 
-Neural Boss uses the same `fightStep()` from the engine on the client (for animation) and on the server (for replay), so both sides always agree on the fight.
+1. The browser posts the move to `POST /api/sessions/:id/steps` as `{ index, step }`.
+2. The server regenerates the level from the seed and judges the move with `interactive.check`.
+3. It records the move in Redis. `HSETNX` makes each move write-once.
+4. It returns the verdict, e.g. `{ correct }`, or `{ hit, answer, state }` for Neural Boss.
+
+The rules:
+- Moves must arrive in order, exactly once. Replays and skips get 409.
+- Nothing is accepted after the game ends.
+- At submit, the browser's payload is **ignored**. The score comes only from the recorded moves (`interactive.toSubmission`).
+- Moves arriving less than 150 ms apart are flagged `too_fast_steps` and kept off the leaderboard.
+
+Admins still see the answers: the admin "Preview level" endpoint returns the full server level.
 
 ## Auth
 
