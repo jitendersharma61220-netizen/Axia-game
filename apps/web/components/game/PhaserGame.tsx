@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import type PhaserNS from 'phaser';
-import { sceneFactories, type GameServer } from './scenes';
+import { sceneFactories, type Cosmetics, type GameServer } from './scenes';
 import { HEIGHT, WIDTH } from './ui';
 
 interface Props {
@@ -10,9 +10,10 @@ interface Props {
   level: unknown;
   onComplete: (submission: unknown) => void;
   server: GameServer;
+  cosmetics?: Cosmetics;
 }
 
-export function PhaserGame({ templateKey, level, onComplete, server }: Props) {
+export function PhaserGame({ templateKey, level, onComplete, server, cosmetics }: Props) {
   const parent = useRef<HTMLDivElement>(null);
   const done = useRef(onComplete);
   done.current = onComplete;
@@ -34,15 +35,17 @@ export function PhaserGame({ templateKey, level, onComplete, server }: Props) {
         height: HEIGHT,
         backgroundColor: '#0b1020',
         scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
-        scene: factory(Phaser, level, (s) => done.current(s), { step: (i, st) => srv.current.step(i, st) }),
+        scene: factory(Phaser, level, (s) => done.current(s), { step: (i, st) => srv.current.step(i, st) }, cosmetics),
       });
     })();
     return () => {
       cancelled = true;
       game?.destroy(true);
     };
+    // Cosmetics are read once when the game boots.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [templateKey, level]);
 
   if (!sceneFactories[templateKey]) return <p className="text-bad">This game can’t be played in this version of the app.</p>;
-  return <div ref={parent} data-testid="game-canvas" className="mx-auto aspect-[3/4] w-full max-w-[540px]" />;
+  return <div ref={parent} data-testid="game-canvas" className="mx-auto aspect-[3/4] w-full max-w-[540px] touch-none select-none" />;
 }

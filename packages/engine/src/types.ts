@@ -15,6 +15,7 @@ export interface ScoreHighlight {
 
 export interface ScoreResult {
   score: number;
+  /** 0 means the score has no ceiling (endless games). */
   maxScore: number;
   breakdown: Record<string, number>;
   /** Up to three headline stats for the result screen. */
@@ -38,9 +39,14 @@ export interface TimingBounds {
  * Adding a new game = implement this interface, register it in `registry.ts`,
  * and add a matching client scene. No backend changes are required.
  */
+/** Arcade games are the main event; warm-ups are short, gentle brain teasers. */
+export type GameCategory = 'arcade' | 'warmup';
+
 export interface GameTemplate<Params = unknown, Level = unknown, ClientLevel = unknown, Submission = unknown> {
   key: string;
   name: string;
+  /** Defaults to 'warmup'. */
+  category?: GameCategory;
   description: string;
   /** Short, player-facing instructions shown before the game starts. */
   howToPlay: string[];
@@ -74,6 +80,12 @@ export interface InteractiveSpec<Params = unknown, Level = unknown, Submission =
   check(level: Level, params: Params, index: number, step: Step, previous: Step[]): StepVerdict;
   /** Turns the recorded moves into the submission that score() expects. */
   toSubmission(steps: Step[]): Submission;
+  /**
+   * Real-time games: how much play time (ms) a move covers. When present, the server
+   * checks that moves arrived at the pace they were played (not faster, and without
+   * long gaps that would allow rewinding) instead of the per-tap reaction check.
+   */
+  stepPlayMs?(step: Step, params: Params): number;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

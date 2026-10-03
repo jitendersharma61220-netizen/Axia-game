@@ -23,7 +23,7 @@ export function ResultScreen({ result, gameName, gameSlug, rival, canPlayAgain, 
 
   const share = async () => {
     const url = `${window.location.origin}/c/${result.sessionId}`;
-    const text = `I scored ${result.score}/${result.maxScore} on ${gameName}. Can you beat me?`;
+    const text = `I scored ${formatScore(result)} on ${gameName}. Can you beat me?`;
     track('share_click', { sessionId: result.sessionId, game: gameSlug });
     if (navigator.share) {
       try {
@@ -51,9 +51,9 @@ export function ResultScreen({ result, gameName, gameSlug, rival, canPlayAgain, 
         </p>
       )}
       <p className="mt-4 text-xs font-semibold uppercase tracking-widest text-muted">Your score</p>
-      <p className="text-7xl font-black" data-testid="score">
-        {result.score}
-        <span className="text-3xl text-muted">/{result.maxScore}</span>
+      <p className={`${result.maxScore ? 'text-7xl' : 'text-6xl'} font-black tabular-nums`} data-testid="score">
+        {result.maxScore ? result.score : result.score.toLocaleString('en-IN')}
+        {result.maxScore > 0 && <span className="text-3xl text-muted">/{result.maxScore}</span>}
       </p>
       {rank && !flagged && (
         <p className="mt-2 text-2xl font-bold text-brand-2" data-testid="percentile">
@@ -68,7 +68,9 @@ export function ResultScreen({ result, gameName, gameSlug, rival, canPlayAgain, 
       )}
       {flagged && (
         <p className="mt-3 rounded-lg bg-warn/10 p-3 text-sm text-warn">
-          This run finished faster than humanly possible, so it won’t count on the leaderboard.
+          {result.fraudFlags?.includes('off_pace')
+            ? 'This run didn’t keep real-time pace (it was paused, rewound or sped up), so it won’t count on the leaderboard.'
+            : 'This run finished faster than humanly possible, so it won’t count on the leaderboard.'}
         </p>
       )}
 
@@ -103,6 +105,11 @@ export function ResultScreen({ result, gameName, gameSlug, rival, canPlayAgain, 
       </div>
     </div>
   );
+}
+
+/** "92/100" for scored games, "18,450" for endless ones (maxScore 0). */
+function formatScore(r: Pick<SessionResult, 'score' | 'maxScore'>) {
+  return r.maxScore ? `${r.score}/${r.maxScore}` : r.score.toLocaleString('en-IN');
 }
 
 function Stat({ label, value }: { label: string; value: string }) {

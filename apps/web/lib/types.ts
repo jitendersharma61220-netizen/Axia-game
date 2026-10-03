@@ -13,6 +13,7 @@ export interface GameSummary {
   name: string;
   description: string;
   templateKey: string;
+  category: 'arcade' | 'warmup';
   howToPlay: string[];
   estMinutes: number;
   attemptsPerDay: number;

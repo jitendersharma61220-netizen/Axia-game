@@ -4,6 +4,7 @@ import {
   digitalDetective,
   internetCafeMission,
   memoryReconstruction,
+  neonDodge,
   neuralBoss,
   ruleShift,
   validateParams,
@@ -19,10 +20,23 @@ interface SeedGame {
   template: { key: string; name: string; description: string };
   estMinutes: number;
   sortOrder: number;
+  attemptsPerDay?: number;
   presets: { key: string; label: string; isDefault?: boolean; params: Record<string, unknown> }[];
 }
 
 const games: SeedGame[] = [
+  {
+    slug: 'neon-dodge',
+    template: neonDodge,
+    estMinutes: 3,
+    sortOrder: 0,
+    attemptsPerDay: 20,
+    presets: [
+      { key: 'normal', label: 'Normal', isDefault: true, params: {} },
+      { key: 'hard', label: 'Hard', params: { startWave: 3, speedScale: 1.2 } },
+      { key: 'insane', label: 'Insane', params: { startWave: 6, speedScale: 1.4, densityScale: 1.4, grazeRadius: 18 } },
+    ],
+  },
   {
     slug: 'memory-reconstruction',
     template: memoryReconstruction,
@@ -94,7 +108,7 @@ async function main() {
         ageModes: [AgeMode.ADULT, AgeMode.TEEN],
         estMinutes: g.estMinutes,
         sortOrder: g.sortOrder,
-        attemptsPerDay: 5,
+        attemptsPerDay: g.attemptsPerDay ?? 5,
       },
     });
     for (const [i, p] of g.presets.entries()) {
@@ -157,7 +171,7 @@ async function main() {
   });
 
   console.log(
-    `Seeded: ${games.map((g) => g.slug).join(', ')} (easy/medium/hard each), daily + weekly challenge` +
+    `Seeded: ${games.map((g) => g.slug).join(', ')} (3 difficulties each), daily + weekly challenge` +
       (process.env.NODE_ENV === 'production' ? '' : ', admin@axia.local'),
   );
 }

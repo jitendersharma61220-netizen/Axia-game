@@ -70,6 +70,7 @@ export class GamesService {
       name: game.name,
       description: game.description,
       templateKey: game.templateKey,
+      category: getTemplate(game.templateKey)?.category ?? 'warmup',
       howToPlay: getTemplate(game.templateKey)?.howToPlay ?? [],
       estMinutes: game.estMinutes,
       attemptsPerDay: game.attemptsPerDay,

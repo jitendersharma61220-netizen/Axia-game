@@ -22,7 +22,7 @@ cp apps/api/.env.example apps/api/.env
 cp apps/web/.env.example apps/web/.env.local
 pnpm --filter @axia/engine build
 pnpm db:migrate        # creates tables
-pnpm db:seed           # all 5 games × easy/medium/hard + today's challenges + admin@axia.local
+pnpm db:seed           # all 6 games × 3 difficulties + today's challenges + admin@axia.local
 pnpm dev               # API on :4000, web on :3000
 ```
 
@@ -52,17 +52,18 @@ The API e2e tests need a running Postgres and Redis. They use a separate `axia_t
 
 ## Status
 
-**All five launch games are playable end to end:**
+**Six games are playable end to end.** The arcade game is the main event, and the other five are warm-ups:
 
 | Game | Type | What it tests |
 | --- | --- | --- |
+| **Neon Dodge** (arcade) | Endless bullet-hell dodger, 1–5 min runs | Reflexes and nerve. Waves get faster and meaner, with lasers, bursts, homing mines and a boss every 5 waves. Grazes build a combo. Every run is replayed on the server from its inputs |
 | Internet Café Mission | Long-form mission, 15–30 min | A nostalgic 2003 café. Stages: CAPTCHA, dial-up sequence, café bill, file hunt, password recall |
 | Digital Detective | Deduction, 10–20 min | Clues and suspects. Exactly one suspect matches every clue |
 | Memory Reconstruction | Memory, 5–10 min | Objects flash on a grid; the player rebuilds it |
 | Rule Shift | Cognitive flexibility, 5–10 min | Sort cards by a hidden rule that keeps changing |
 | Neural Boss | Speed / mental math, 5–15 min | A boss fight powered by rapid-fire puzzles |
 
-Every game has easy, medium and hard presets in the seed, and every setting can be edited in `/admin`.
+Every game has three difficulty presets in the seed (Neon Dodge: Normal, Hard, Insane), and every setting can be edited in `/admin`.
 
 **Closed-beta tooling:**
 - Invite codes, with uses and an active toggle, managed in `/admin/invites`. A friend's challenge link also works as an invite.

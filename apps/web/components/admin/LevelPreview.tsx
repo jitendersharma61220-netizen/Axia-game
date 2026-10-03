@@ -6,6 +6,10 @@
  * Static summary of a generated level, so admins can see the effect of a
  * change before saving it. One small renderer per template, plus a JSON fallback.
  */
+
+import { useMemo } from 'react';
+import { autopilotWave, createRun, waveNumber, type NeonDodgeParams } from '@axia/engine';
+
 export function LevelPreview({ templateKey, level, serverLevel }: { templateKey: string; level: any; serverLevel?: any }) {
   const render = previews[templateKey];
   if (!render) {
@@ -16,6 +20,8 @@ export function LevelPreview({ templateKey, level, serverLevel }: { templateKey:
 
 /** `level` is what players receive; `full` is the admin-only server level including answers. */
 const previews: Record<string, (level: any, full: any) => React.ReactNode> = {
+  'neon-dodge': (level, full) => <NeonDodgePreview params={level.params} waveSeeds={full.waveSeeds ?? [level.firstSeed]} />,
+
   'memory-reconstruction': (level) => {
     const round = level.rounds[0];
     const byCell = new Map<number, string>(round.placements.map((p: any) => [p.cell, p.icon]));
@@ -108,3 +114,27 @@ const previews: Record<string, (level: any, full: any) => React.ReactNode> = {
     </>
   ),
 };
+
+/** Lets an admin feel a preset's difficulty: a zero-reaction-time bot plays this exact run. */
+function NeonDodgePreview({ params, waveSeeds }: { params: NeonDodgeParams; waveSeeds: string[] }) {
+  const result = useMemo(() => {
+    const run = createRun(params);
+    for (let i = 0; i < waveSeeds.length && !run.ended; i++) autopilotWave(run, waveSeeds[i]);
+    return run;
+  }, [params, waveSeeds]);
+  const reached = waveNumber(result);
+  const secs = Math.floor(result.totalTicks / 60);
+  return (
+    <>
+      <p>
+        Autopilot (perfect vision, zero reaction time) reached <b>wave {reached}</b> in {Math.floor(secs / 60)}:
+        {String(secs % 60).padStart(2, '0')} with <b>{result.points.toLocaleString('en-IN')}</b> points
+        {result.death ? `, then hit by a ${result.death.cause}` : ''}.
+      </p>
+      <p className="text-xs text-muted">
+        Real players usually fall well short of the bot. Waves last {params.waveSeconds}s; run starts at wave {params.startWave}
+        {params.bossEvery ? `; boss every ${params.bossEvery} waves` : ''}. Hazards: {params.hazards.join(', ')}.
+      </p>
+    </>
+  );
+}

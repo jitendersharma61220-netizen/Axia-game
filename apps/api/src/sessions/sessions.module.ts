@@ -47,6 +47,20 @@ function hasInhumanGap(times: number[]) {
   return times.some((t, i) => i > 0 && t - times[i - 1] < MIN_HUMAN_STEP_GAP_MS);
 }
 
+/**
+ * Real-time games (InteractiveSpec.stepPlayMs): each move must arrive about as long
+ * after the previous one as the play it covers. Faster means the run was simulated,
+ * not played; much slower means it was paused or rewound and replayed.
+ */
+export const PACE = { minRatio: 0.85, minSlackMs: 500, maxRatio: 1.35, maxSlackMs: 5000, firstStepExtraMs: 20_000 };
+export function isOffPace(times: number[], startedAt: number, playMs: number[]) {
+  return times.some((t, i) => {
+    const gap = t - (i === 0 ? startedAt : times[i - 1]);
+    const extra = i === 0 ? PACE.firstStepExtraMs : 0;
+    return gap < playMs[i] * PACE.minRatio - PACE.minSlackMs || gap > playMs[i] * PACE.maxRatio + PACE.maxSlackMs + extra;
+  });
+}
+
 class StepDto {
   @IsInt()
   @Min(0)
@@ -169,7 +183,13 @@ export class SessionsService {
     const result = template.score(level, parsed.data, { durationMs }, params);
     const fraudFlags: string[] = [];
     if (durationMs < bounds.minMs) fraudFlags.push('too_fast');
-    if (recorded && hasInhumanGap(recorded.map((r) => r.at))) fraudFlags.push('too_fast_steps');
+    const playMs = template.interactive?.stepPlayMs;
+    if (recorded && playMs) {
+      const covered = recorded.map((r) => playMs(r.step, params));
+      if (isOffPace(recorded.map((r) => r.at), session.startedAt.getTime(), covered)) fraudFlags.push('off_pace');
+    } else if (recorded && hasInhumanGap(recorded.map((r) => r.at))) {
+      fraudFlags.push('too_fast_steps');
+    }
     const status = fraudFlags.length ? SessionStatus.FLAGGED : SessionStatus.COMPLETED;
 
     // Conditional update guards against double submits racing each other.

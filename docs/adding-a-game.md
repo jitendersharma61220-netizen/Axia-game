@@ -26,8 +26,15 @@ Adding game #2 (or #15) needs **no backend changes**. Sessions, scoring, attempt
    2. Add Easy/Hard presets and play-test (admins can play DRAFT games).
    3. Flip the status to LIVE.
 
-The five existing templates are good references:
+**Real-time games** (action, reflex) follow the Neon Dodge pattern:
+- Write the game as a deterministic engine simulation that both the scene and the server run. Use integer maths only (`+ - *`, `Math.trunc`, `Math.sqrt`, `Math.imul`, lookup tables). Transcendental functions differ between browsers.
+- Make each wave or segment one interactive step that carries the recorded inputs. Reveal the next segment's seed only in the verdict.
+- Implement `interactive.stepPlayMs` so the server can check the pacing.
+- Set `category: 'arcade'` and return `maxScore: 0` for an uncapped score.
+
+The existing templates are good references:
 - `rule-shift`: instant feedback judged move by move on the server
 - `digital-detective`: answers hidden from the client
 - `neural-boss`: server-side fight replay with per-answer verdicts
 - `internet-cafe-mission`: multi-stage, with a different UI per stage
+- `neon-dodge`: real-time arcade, replay-verified wave by wave, with an autopilot for tests and the admin difficulty preview

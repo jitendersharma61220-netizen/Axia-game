@@ -56,6 +56,7 @@ The next session therefore uses the new settings, with no deploy or restart.
 | Rule Shift | No: the hidden rule stays on the server (easy mode shows it on purpose) | Each sort is judged by `POST /sessions/:id/steps` |
 | Neural Boss | No: correct options stay on the server | Each answer is judged by `POST /sessions/:id/steps`; the server replays the fight and returns the new HP |
 | Memory Reconstruction | Yes, by nature | The player must see the objects; scoring and timing checks happen on the server |
+| Neon Dodge | Only the current wave's seed | Each wave's recorded inputs are replayed on the server, which then reveals the next wave's seed |
 
 **Instant-feedback games** implement `interactive` on their template (`packages/engine/src/types.ts`). Every move flow works like this:
 
@@ -71,6 +72,19 @@ The rules:
 - Moves arriving less than 150 ms apart are flagged `too_fast_steps` and kept off the leaderboard.
 
 Admins still see the answers: the admin "Preview level" endpoint returns the full server level.
+
+### Real-time games: replay verification (Neon Dodge)
+
+Neon Dodge is a deterministic simulation (`packages/engine/src/templates/neon-dodge.ts`). The browser and the server run the same code, and it is bit-exact everywhere: integer maths, an integer sine table, and no `Math.sin`/`cos`/`atan2`.
+
+1. The browser gets only the first wave's seed. Wave seeds are one-way hashes of the secret session seed.
+2. While playing, the browser records the finger target for every tick (60 per second) as a run-length list.
+3. At the end of a wave (or on a hit) it posts that list as one step. The server replays every wave so far from the inputs and decides the outcome. Only if the wave was survived does it return the next wave's seed.
+4. The score is the replayed score. A claimed score, a forged "survived", or inputs that don't produce the run are all simply ignored.
+
+**Pacing.** Templates with `interactive.stepPlayMs` replace the 150 ms rule with a pacing check. Each wave must arrive about as long after the previous one as the play it covers: no faster than 0.85× (minus 0.5 s), and no slower than 1.35× (plus 5 s), with extra time for the first wave. Anything else is flagged `off_pace`. This blocks simulating a run offline and rewinding or pausing to think. Leaving the tab ends the run.
+
+**Known limit.** A real-time bot that sees the screen can still play well. Behaviour-based bot detection is future work.
 
 ## Auth
 

@@ -2,12 +2,14 @@ import { z } from 'zod';
 import { digitalDetective } from './templates/digital-detective';
 import { internetCafeMission } from './templates/internet-cafe-mission';
 import { memoryReconstruction } from './templates/memory-reconstruction';
+import { neonDodge } from './templates/neon-dodge';
 import { neuralBoss } from './templates/neural-boss';
 import { ruleShift } from './templates/rule-shift';
-import type { AnyGameTemplate } from './types';
+import type { AnyGameTemplate, GameCategory } from './types';
 
 /** Every playable template. Register new games here. */
 export const templates: Record<string, AnyGameTemplate> = {
+  [neonDodge.key]: neonDodge,
   [memoryReconstruction.key]: memoryReconstruction,
   [ruleShift.key]: ruleShift,
   [digitalDetective.key]: digitalDetective,
@@ -22,6 +24,7 @@ export function getTemplate(key: string): AnyGameTemplate | undefined {
 export interface TemplateDescriptor {
   key: string;
   name: string;
+  category: GameCategory;
   description: string;
   howToPlay: string[];
   defaultParams: unknown;
@@ -33,6 +36,7 @@ export function describeTemplate(t: AnyGameTemplate): TemplateDescriptor {
   return {
     key: t.key,
     name: t.name,
+    category: t.category ?? 'warmup',
     description: t.description,
     howToPlay: t.howToPlay,
     defaultParams: t.defaultParams,

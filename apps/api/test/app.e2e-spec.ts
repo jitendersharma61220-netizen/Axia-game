@@ -253,7 +253,9 @@ describe('admin control center', () => {
 
   it('serves template JSON schemas for the editor and a dashboard', async () => {
     const t = await admin.get('/api/admin/templates').expect(200);
-    expect(t.body[0].paramsJsonSchema.properties.objectCount).toBeDefined();
+    const memory = t.body.find((x: { key: string }) => x.key === 'memory-reconstruction');
+    expect(memory.paramsJsonSchema.properties.objectCount).toBeDefined();
+    expect(t.body.find((x: { key: string }) => x.key === 'neon-dodge').category).toBe('arcade');
     const d = await admin.get('/api/admin/dashboard').expect(200);
     expect(d.body.today.sessions).toBeGreaterThan(0);
     expect(d.body.today.flagged).toBeGreaterThan(0);
@@ -283,6 +285,7 @@ describe('every installed template', () => {
     'digital-detective': { cases: [] },
     'neural-boss': { answers: [] },
     'internet-cafe-mission': { stages: [] },
+    'neon-dodge': { waves: [] },
   };
 
   it('has an e2e submission fixture for each template', () => {
