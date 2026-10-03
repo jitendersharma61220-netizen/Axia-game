@@ -1,6 +1,7 @@
 'use client';
 
 import { Suspense, useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { api, ApiError } from '@/lib/api';
 import { readAttribution, setInviteCode } from '@/lib/attribution';
@@ -98,6 +99,17 @@ function LoginForm() {
             </button>
           </form>
         )}
+        <p className="text-xs text-muted">
+          By continuing, you agree to our{' '}
+          <Link className="underline" href="/terms">
+            Terms of Service
+          </Link>{' '}
+          and{' '}
+          <Link className="underline" href="/privacy">
+            Privacy Policy
+          </Link>
+          .
+        </p>
         {error && (
           <p className="rounded-lg bg-bad/10 p-3 text-sm text-bad" data-testid="login-error">
             {error}
