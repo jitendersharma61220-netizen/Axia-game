@@ -50,7 +50,7 @@ docker compose -f deploy/docker-compose.prod.yml --env-file deploy/.env ps     #
 ```
 The first build takes a few minutes. Database migrations run automatically every time the API starts.
 
-**Load the five games** (only once; running it again is safe):
+**Load the six games, coin packs and ship skins** (only once; running it again is safe):
 ```bash
 docker compose -f deploy/docker-compose.prod.yml --env-file deploy/.env exec api ./node_modules/.bin/tsx prisma/seed.ts
 ```
@@ -63,7 +63,7 @@ bash deploy/check.sh play.yourbrand.in
 ```
 It runs 10 checks:
 - HTTPS and the HTTP → HTTPS redirect
-- API health, and that all 5 games are live
+- API health, and that all 6 games are live
 - security headers and `robots.txt`
 - dev login is off
 - the Google client ID is built into the site

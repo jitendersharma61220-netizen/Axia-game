@@ -15,7 +15,7 @@ check "HTTPS works with a valid certificate" "curl -s $K -o /dev/null --max-time
 check "http:// redirects to https://"        "[ \"\$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 http://$D/)\" = 308 ] || [ \"\$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 http://$D/)\" = 301 ]"
 check "API health is ok"                    "curl -s $K --max-time 15 https://$D/api/health | grep -q '\"ok\":true'"
 games=$(curl -s $K --max-time 15 https://$D/api/games | grep -o '"slug"' | wc -l)
-check "5 games are live (found $games)"     "[ $games -eq 5 ]"
+check "All 6 games are live (found $games)"  "[ $games -ge 6 ]"
 hdrs=$(curl -s $K -I --max-time 15 https://$D/)
 check "HSTS header present"                 "echo \"\$hdrs\" | grep -qi strict-transport-security"
 check "Clickjacking protection header"      "echo \"\$hdrs\" | grep -qi 'x-frame-options: deny'"
