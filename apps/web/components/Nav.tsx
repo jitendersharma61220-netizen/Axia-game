@@ -10,7 +10,7 @@ const links = [
   { href: '/daily', label: 'Daily Challenge' },
   { href: '/missions', label: 'Missions' },
   { href: '/leaderboard', label: 'Leaderboard' },
-  { href: '/rewards', label: 'Rewards' },
+  { href: '/shop', label: 'Shop' },
   { href: '/pricing', label: 'Pricing' },
 ];
 
@@ -36,6 +36,11 @@ export function Nav() {
           ))}
         </nav>
         <div className="ml-auto flex items-center gap-2">
+          {user?.ageMode === 'ADULT' && (
+            <Link href="/shop" className="rounded-full border border-warn/40 bg-warn/10 px-3 py-1 text-sm font-bold text-warn" data-testid="coin-chip">
+              🪙 {user.coins.toLocaleString('en-IN')}
+            </Link>
+          )}
           {user?.role === 'ADMIN' && (
             <Link href="/admin" className="btn-ghost text-sm">
               Admin

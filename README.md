@@ -65,6 +65,15 @@ The API e2e tests need a running Postgres and Redis. They use a separate `axia_t
 
 Every game has three difficulty presets in the seed (Neon Dodge: Normal, Hard, Insane), and every setting can be edited in `/admin`.
 
+**Coins (spend-only virtual currency):**
+- Adults buy coin packs in `/shop` and spend coins on:
+  - an extra play once the day's free plays are used, at a price set per game in the admin (never on challenges)
+  - cosmetic Neon Dodge ship skins
+- Coins are never won, paid out or transferred, and teens can't buy or spend them.
+- Every balance change is written to a ledger that the player and admins can see.
+- `/admin/shop` manages packs and skins and shows revenue. Admins can grant or deduct coins (audited) from `/admin/users`.
+- **Payments:** `PAYMENTS_PROVIDER=dev` is a test mode where purchases complete instantly. Production refuses to boot in that mode and shows packs as "coming soon" until a real gateway is connected.
+
 **Closed-beta tooling:**
 - Invite codes, with uses and an active toggle, managed in `/admin/invites`. A friend's challenge link also works as an invite.
 - First-touch attribution: invite code, UTM tags, challenge link.

@@ -12,10 +12,12 @@ interface Props {
   /** Set when the player arrived from a friend's challenge link. */
   rival?: { player: string; score: number } | null;
   canPlayAgain: boolean;
+  /** Coins the next play costs (free plays used up), or null when it's free. */
+  playAgainCost?: number | null;
   onPlayAgain: () => void;
 }
 
-export function ResultScreen({ result, gameName, gameSlug, rival, canPlayAgain, onPlayAgain }: Props) {
+export function ResultScreen({ result, gameName, gameSlug, rival, canPlayAgain, playAgainCost, onPlayAgain }: Props) {
   const [copied, setCopied] = useState(false);
   const rank = result.challengeLeaderboard ?? result.leaderboard;
   const won = rival ? result.score > rival.score : null;
@@ -96,7 +98,7 @@ export function ResultScreen({ result, gameName, gameSlug, rival, canPlayAgain, 
         {copied && <p className="text-sm text-good">Link copied. Send it to a friend!</p>}
         <div className="grid grid-cols-2 gap-2">
           <button className="btn-ghost" onClick={onPlayAgain} disabled={!canPlayAgain}>
-            Play again
+            {playAgainCost ? `Play again · 🪙 ${playAgainCost}` : 'Play again'}
           </button>
           <Link className="btn-ghost" href={`/leaderboard?game=${gameSlug}`}>
             Leaderboard

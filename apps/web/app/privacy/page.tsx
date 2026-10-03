@@ -46,11 +46,17 @@ export default function PrivacyPage() {
                 <b>Feedback</b> you send us through the Feedback button, including an optional star rating.
               </p>
               <p>
+                <b>Coins and purchases:</b> your coin balance, every change to it, the packs you buy (amount, time, status and
+                the payment provider’s reference), and the cosmetic items you own. When real payments are switched on, the
+                payment provider collects your payment details directly. We never see or store your full card, UPI or bank
+                details.
+              </p>
+              <p>
                 <b>Technical data:</b> your IP address is used briefly to block abuse (for example, too many sign-in attempts).
                 It is held in a short-lived memory store for at most 10 minutes and is not written to our database.
               </p>
               <p>
-                <b>We do not collect</b> your phone number, contacts, location, payment card details, or government ID.
+                <b>We do not collect</b> your phone number, contacts, location, full payment card or bank details, or government ID.
               </p>
             </>
           ),
@@ -128,6 +134,10 @@ export default function PrivacyPage() {
                   database. They process data only on our instructions.
                 </li>
                 <li>
+                  <b>Our payment provider</b>, once real payments are switched on, to take payment for coin packs and to handle
+                  refunds and disputes.
+                </li>
+                <li>
                   <b>Authorities</b>, when Indian law requires it, for example under a valid legal order.
                 </li>
               </ul>
@@ -147,7 +157,10 @@ export default function PrivacyPage() {
               <li>
                 Totals that cannot identify you (for example, “1,200 games played on Monday”) may be kept after deletion.
               </li>
-              <li>We may keep specific records longer when the law requires it.</li>
+              <li>
+                We may keep specific records longer when the law requires it. For example, purchase records are kept for as long
+                as tax and accounting law requires, currently up to 8 years.
+              </li>
             </ul>
           ),
         },

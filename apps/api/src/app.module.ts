@@ -16,6 +16,7 @@ import { LeaderboardsModule } from './leaderboards/leaderboards.module';
 import { ShareModule } from './share/share.module';
 import { AdminModule } from './admin/admin.module';
 import { FeedbackModule } from './feedback/feedback.module';
+import { CoinsModule } from './coins/coins.module';
 import { HealthController } from './health/health.controller';
 
 @Module({
@@ -33,6 +34,7 @@ import { HealthController } from './health/health.controller';
     ShareModule,
     AdminModule,
     FeedbackModule,
+    CoinsModule,
   ],
   controllers: [HealthController],
   providers: [

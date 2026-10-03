@@ -8,7 +8,7 @@ import { RedisService } from '../redis/redis.service';
 
 export type GameWithPresets = Game & { presets: DifficultyPreset[] };
 
-const CACHE_KEY = 'cache:games:v1';
+const CACHE_KEY = 'cache:games:v2';
 const CACHE_TTL_S = 300;
 
 /**
@@ -74,6 +74,7 @@ export class GamesService {
       howToPlay: getTemplate(game.templateKey)?.howToPlay ?? [],
       estMinutes: game.estMinutes,
       attemptsPerDay: game.attemptsPerDay,
+      extraTryCoins: game.extraTryCoins,
       attemptsLeft: user ? Math.max(0, game.attemptsPerDay - (await this.attemptsUsed(user.id, game.id))) : null,
       status: game.status,
       presets: game.presets.map((p) => ({ key: p.key, label: p.label, isDefault: p.isDefault })),

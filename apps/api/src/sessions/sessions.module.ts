@@ -15,16 +15,17 @@ import {
   Param,
   Post,
 } from '@nestjs/common';
-import { Prisma, SessionStatus, type Challenge, type User } from '@prisma/client';
+import { CoinReason, Prisma, SessionStatus, type Challenge, type User } from '@prisma/client';
 import { getTemplate, validateParams } from '@axia/engine';
 import { randomUUID } from 'node:crypto';
-import { IsInt, IsObject, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsBoolean, IsInt, IsObject, IsOptional, IsString, Max, Min } from 'class-validator';
 import { CurrentUser } from '../common/decorators';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
 import { GamesModule, GamesService } from '../games/games.module';
 import { LeaderboardsModule, LeaderboardsService, type RankInfo } from '../leaderboards/leaderboards.module';
 import { AnalyticsService } from '../analytics/analytics.service';
+import { CoinsModule, CoinsService } from '../coins/coins.module';
 
 class StartSessionDto {
   /** Difficulty preset key; defaults to the game's default preset. */
@@ -36,6 +37,11 @@ class StartSessionDto {
   @IsOptional()
   @IsString()
   challengeId?: string;
+
+  /** Pay the game's extraTryCoins for one more play once today's free plays are used. */
+  @IsOptional()
+  @IsBoolean()
+  useCoins?: boolean;
 }
 
 const stepsKey = (sessionId: string) => `steps:${sessionId}`;
@@ -84,6 +90,7 @@ export class SessionsService {
     private readonly games: GamesService,
     private readonly boards: LeaderboardsService,
     private readonly analytics: AnalyticsService,
+    private readonly coins: CoinsService,
   ) {}
 
   async start(user: User, slug: string, dto: StartSessionDto) {
@@ -119,12 +126,33 @@ export class SessionsService {
     const attemptsKey = this.games.attemptsKey(user.id, game.id);
     const used = await this.redis.incr(attemptsKey);
     await this.redis.expire(attemptsKey, 2 * 86_400);
+    // Past the free plays, an adult may buy one more play with coins (never for challenges,
+    // which stay one attempt each for everyone).
+    let paidCoins = 0;
     if (used > game.attemptsPerDay) {
-      await this.redis.decr(attemptsKey);
-      throw new HttpException(
-        { code: 'ATTEMPTS_EXHAUSTED', message: `Daily limit of ${game.attemptsPerDay} plays reached. Come back tomorrow!` },
-        HttpStatus.TOO_MANY_REQUESTS,
-      );
+      const canBuy = dto.useCoins && !challenge && typeof game.extraTryCoins === 'number';
+      if (!canBuy) {
+        await this.redis.decr(attemptsKey);
+        if (dto.useCoins) {
+          throw new ConflictException({ code: 'EXTRA_TRY_UNAVAILABLE', message: 'Extra plays can’t be bought for this game.' });
+        }
+        throw new HttpException(
+          {
+            code: 'ATTEMPTS_EXHAUSTED',
+            message: `Daily limit of ${game.attemptsPerDay} plays reached. Come back tomorrow!`,
+            extraTryCoins: challenge ? null : game.extraTryCoins,
+          },
+          HttpStatus.TOO_MANY_REQUESTS,
+        );
+      }
+      try {
+        this.coins.assertCanUseCoins(user);
+        await this.coins.debit(user.id, game.extraTryCoins!, CoinReason.EXTRA_TRY, game.slug);
+      } catch (err) {
+        await this.redis.decr(attemptsKey);
+        throw err;
+      }
+      paidCoins = game.extraTryCoins!;
     }
 
     const seed = challenge?.seed ?? randomUUID();
@@ -143,16 +171,23 @@ export class SessionsService {
       });
     } catch (err) {
       await this.redis.decr(attemptsKey);
+      if (paidCoins) await this.coins.credit(user.id, paidCoins, CoinReason.EXTRA_TRY_REFUND, game.slug);
       throw err;
     }
-    this.analytics.track('game_start', user.id, { game: game.slug, difficulty: preset.key, challengeId: challenge?.id ?? null });
+    this.analytics.track('game_start', user.id, {
+      game: game.slug,
+      difficulty: preset.key,
+      challengeId: challenge?.id ?? null,
+      ...(paidCoins ? { paidCoins } : {}),
+    });
 
     return {
       sessionId: session.id,
       game: { slug: game.slug, name: game.name, templateKey: game.templateKey },
       difficulty: { key: preset.key, label: preset.label },
       challenge: challenge ? { id: challenge.id, title: challenge.title, type: challenge.type } : null,
-      attemptsLeft: game.attemptsPerDay - used,
+      attemptsLeft: Math.max(0, game.attemptsPerDay - used),
+      paidCoins,
       level: template.toClientLevel(level, params),
     };
   }
@@ -313,5 +348,5 @@ export class SessionsController {
   }
 }
 
-@Module({ imports: [GamesModule, LeaderboardsModule], providers: [SessionsService], controllers: [SessionsController] })
+@Module({ imports: [GamesModule, LeaderboardsModule, CoinsModule], providers: [SessionsService], controllers: [SessionsController] })
 export class SessionsModule {}

@@ -29,6 +29,26 @@ enum ChallengeType {
   WEEKLY
 }
 
+/// Why a player's coin balance changed. Coins are bought or granted, never won.
+enum CoinReason {
+  PURCHASE
+  EXTRA_TRY
+  EXTRA_TRY_REFUND
+  SKIN
+  ADMIN_GRANT
+  ADMIN_DEDUCT
+}
+
+enum PurchaseStatus {
+  CREATED
+  PAID
+  FAILED
+}
+
+enum ShopItemKind {
+  SKIN
+}
+
 enum SessionStatus {
   STARTED
   COMPLETED
@@ -60,6 +80,12 @@ model User {
   utmMedium           String?
   utmCampaign         String?
   feedback            Feedback[]
+
+  /// Spend-only virtual currency. Always changed together with a CoinLedger row.
+  coins       Int          @default(0)
+  coinLedger  CoinLedger[]
+  purchases   Purchase[]
+  items       UserItem[]
 
   @@index([createdAt])
 }
@@ -107,6 +133,8 @@ model Game {
   availableFrom  DateTime?
   availableTo    DateTime?
   sortOrder      Int                @default(0)
+  /// Coins for one more play after the daily free plays are used. null = can't buy extra plays.
+  extraTryCoins  Int?
   createdAt      DateTime           @default(now())
   updatedAt      DateTime           @updatedAt
   presets        DifficultyPreset[]
@@ -199,4 +227,87 @@ model AuditLog {
 
   @@index([entity, entityId])
   @@index([createdAt])
+}
+
+/// Every change to a coin balance, with the balance after it (an audit trail players can see).
+model CoinLedger {
+  id           String     @id @default(cuid())
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  delta        Int
+  reason       CoinReason
+  /// Purchase id, game slug, item key… depending on the reason.
+  ref          String?
+  balanceAfter Int
+  /// Admin who granted or deducted coins.
+  actorId      String?
+  note         String?
+  createdAt    DateTime   @default(now())
+
+  @@index([userId, createdAt])
+  @@index([reason, createdAt])
+}
+
+model CoinPack {
+  id         String     @id @default(cuid())
+  key        String     @unique
+  label      String
+  /// Price in paise (₹1 = 100).
+  pricePaise Int
+  coins      Int
+  bonusCoins Int        @default(0)
+  active     Boolean    @default(true)
+  sortOrder  Int        @default(0)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  purchases  Purchase[]
+}
+
+model Purchase {
+  id          String         @id @default(cuid())
+  userId      String
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  packId      String
+  pack        CoinPack       @relation(fields: [packId], references: [id], onDelete: Restrict)
+  amountPaise Int
+  coins       Int
+  /// `dev` (test mode, no real money) or a payment gateway.
+  provider    String
+  providerRef String?
+  status      PurchaseStatus @default(CREATED)
+  createdAt   DateTime       @default(now())
+  paidAt      DateTime?
+
+  @@index([status, createdAt])
+  @@index([userId, createdAt])
+}
+
+/// Cosmetic items bought with coins. Purely visual: never affect gameplay or scores.
+model ShopItem {
+  id         String       @id @default(cuid())
+  key        String       @unique
+  kind       ShopItemKind @default(SKIN)
+  /// Game the item applies to (e.g. a Neon Dodge ship skin).
+  gameSlug   String
+  label      String
+  priceCoins Int
+  /// Kind-specific look, e.g. { core, glow, trail } colours for a ship skin.
+  data       Json
+  active     Boolean      @default(true)
+  sortOrder  Int          @default(0)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  owners     UserItem[]
+}
+
+model UserItem {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  itemId      String
+  item        ShopItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  equipped    Boolean  @default(false)
+  purchasedAt DateTime @default(now())
+
+  @@unique([userId, itemId])
 }

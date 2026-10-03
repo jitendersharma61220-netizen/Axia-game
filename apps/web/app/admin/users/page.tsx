@@ -12,6 +12,7 @@ interface UserRow {
   role: 'USER' | 'ADMIN';
   ageMode: string | null;
   banned: boolean;
+  coins: number;
   createdAt: string;
   _count: { sessions: number };
 }
@@ -24,6 +25,23 @@ export default function AdminUsers() {
     fetcher,
   );
   const [error, setError] = useState<string | null>(null);
+  const [adjusting, setAdjusting] = useState<UserRow | null>(null);
+  const [delta, setDelta] = useState('');
+  const [note, setNote] = useState('');
+
+  const adjust = async () => {
+    if (!adjusting) return;
+    setError(null);
+    try {
+      await api(`/admin/users/${adjusting.id}/coins`, { body: { delta: Number(delta), note } });
+      setAdjusting(null);
+      setDelta('');
+      setNote('');
+      await mutate();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Failed');
+    }
+  };
 
   const update = async (u: UserRow, body: Partial<Pick<UserRow, 'role' | 'banned'>>) => {
     setError(null);
@@ -42,6 +60,24 @@ export default function AdminUsers() {
       <h1 className="text-3xl font-black">Users</h1>
       <input className="input max-w-sm" placeholder="Search email or name" value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} />
       {error && <p className="text-sm text-bad">{error}</p>}
+      {adjusting && (
+        <div className="card space-y-3" data-testid="coin-adjust">
+          <p className="font-semibold">
+            Adjust coins for {adjusting.name} <span className="text-muted">(balance 🪙 {adjusting.coins})</span>
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <input className="input w-36" type="number" placeholder="+50 or -20" value={delta} onChange={(e) => setDelta(e.target.value)} />
+            <input className="input flex-1" placeholder="Reason (shown in the audit log and the player's history)" value={note} onChange={(e) => setNote(e.target.value)} />
+            <button className="btn-primary" disabled={!Number(delta) || note.trim().length < 3} onClick={adjust}>
+              Apply
+            </button>
+            <button className="btn-ghost" onClick={() => setAdjusting(null)}>
+              Cancel
+            </button>
+          </div>
+          <p className="text-xs text-muted">Use for support and goodwill only. Coins must never be given as a prize for winning a game.</p>
+        </div>
+      )}
       <div className="card overflow-x-auto p-0">
         <table className="w-full text-sm">
           <thead className="text-left text-muted">
@@ -49,6 +85,7 @@ export default function AdminUsers() {
               <th className="px-5 py-2">User</th>
               <th>Age mode</th>
               <th>Plays</th>
+              <th>Coins</th>
               <th>Joined</th>
               <th>Role</th>
               <th />
@@ -63,6 +100,11 @@ export default function AdminUsers() {
                 </td>
                 <td>{u.ageMode ?? '—'}</td>
                 <td>{u._count.sessions}</td>
+                <td>
+                  <button className="text-warn underline" onClick={() => setAdjusting(u)} title="Adjust coins">
+                    🪙 {u.coins}
+                  </button>
+                </td>
                 <td className="text-xs text-muted">{fmt(u.createdAt)}</td>
                 <td>
                   <select className="input w-auto py-1" value={u.role} onChange={(e) => update(u, { role: e.target.value as UserRow['role'] })}>

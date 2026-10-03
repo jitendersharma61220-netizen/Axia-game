@@ -20,4 +20,10 @@ describe('productionConfigProblems', () => {
     const problems = productionConfigProblems({ ...good, JWT_SECRET: 'short', GOOGLE_CLIENT_ID: '', ALLOW_DEV_LOGIN: 'true' });
     expect(problems).toHaveLength(3);
   });
+
+  it('rejects test-mode purchases in production', () => {
+    expect(productionConfigProblems({ ...good, PAYMENTS_PROVIDER: 'dev' })).toEqual([
+      'PAYMENTS_PROVIDER=dev (test-mode purchases) must not be used in production',
+    ]);
+  });
 });

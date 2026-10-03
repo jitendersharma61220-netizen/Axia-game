@@ -6,7 +6,7 @@ import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigat
 import dynamic from 'next/dynamic';
 import useSWR from 'swr';
 import { api, ApiError, fetcher, postStep } from '@/lib/api';
-import type { GameSummary, SessionResult, StartedSession } from '@/lib/types';
+import type { GameSummary, SessionResult, ShipSkinData, StartedSession } from '@/lib/types';
 import { useAuth } from '@/components/AuthProvider';
 import { ResultScreen } from '@/components/game/ResultScreen';
 
@@ -32,11 +32,14 @@ function Play() {
   const search = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
-  const { user } = useAuth();
+  const { user, refresh } = useAuth();
   const challengeId = search.get('challenge');
   const vs = search.get('vs');
   const { data: game, error: gameError, mutate } = useSWR<GameSummary>(`/games/${slug}`, fetcher);
   const { data: rival } = useSWR<ShareInfo>(vs ? `/share/${vs}` : null, fetcher);
+  // Purely visual extras (e.g. a Neon Dodge ship skin) the player has equipped.
+  const { data: equipped } = useSWR<{ items: { kind: string; data: ShipSkinData }[] }>(user ? `/shop/equipped/${slug}` : null, fetcher);
+  const ship = equipped?.items.find((i) => i.kind === 'SKIN')?.data;
   const [difficulty, setDifficulty] = useState<string | null>(search.get('difficulty'));
   const [state, setState] = useState<State>({ kind: 'idle' });
   const [error, setError] = useState<string | null>(null);
@@ -45,15 +48,16 @@ function Play() {
     if (game && !difficulty) setDifficulty((game.presets.find((p) => p.isDefault) ?? game.presets[0])?.key ?? null);
   }, [game, difficulty]);
 
-  const start = async () => {
+  const start = async (useCoins = false) => {
     if (!user) return router.push(`/login?next=${encodeURIComponent(`${pathname}?${search.toString()}`)}`);
     if (!user.onboarded) return router.push(`/onboarding?next=${encodeURIComponent(`${pathname}?${search.toString()}`)}`);
     setError(null);
     setState({ kind: 'starting' });
     try {
       const session = await api<StartedSession>(`/games/${slug}/sessions`, {
-        body: challengeId ? { challengeId } : { difficulty },
+        body: challengeId ? { challengeId } : { difficulty, ...(useCoins ? { useCoins: true } : {}) },
       });
+      if (useCoins) void refresh();
       setState({ kind: 'playing', session });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Could not start the game');
@@ -78,6 +82,11 @@ function Play() {
     [state, mutate],
   );
 
+  // Free plays used up: an adult can buy one more with coins (never for challenges).
+  const outOfPlays = game?.attemptsLeft === 0;
+  const extraCost = !challengeId && user?.ageMode === 'ADULT' && game?.extraTryCoins ? game.extraTryCoins : null;
+  const canAfford = extraCost !== null && (user?.coins ?? 0) >= extraCost;
+
   if (gameError) return <p className="text-bad">Game not found.</p>;
   if (!game) return <p className="text-muted">Loading…</p>;
 
@@ -93,6 +102,7 @@ function Play() {
           level={state.session.level}
           onComplete={onComplete}
           server={{ step: (index, step) => postStep(state.session.sessionId, index, step) }}
+          cosmetics={ship ? { ship } : undefined}
         />
         {state.kind === 'submitting' && <p className="mt-3 text-center text-muted">Scoring…</p>}
       </div>
@@ -106,10 +116,11 @@ function Play() {
         gameName={game.name}
         gameSlug={game.slug}
         rival={rival ? { player: rival.player, score: rival.score } : null}
-        canPlayAgain={!challengeId && (game.attemptsLeft ?? 0) > 0}
+        canPlayAgain={!challengeId && ((game.attemptsLeft ?? 0) > 0 || canAfford)}
+        playAgainCost={outOfPlays ? extraCost : null}
         onPlayAgain={() => {
           setState({ kind: 'idle' });
-          void start();
+          void start(outOfPlays && canAfford);
         }}
       />
     );
@@ -155,12 +166,27 @@ function Play() {
 
         <div className="flex items-center justify-between">
           <span className="text-sm text-muted">
-            {game.attemptsLeft !== null ? `${game.attemptsLeft} of ${game.attemptsPerDay} plays left today` : `~${game.estMinutes} min`}
+            {game.attemptsLeft !== null ? `${game.attemptsLeft} of ${game.attemptsPerDay} free plays left today` : `~${game.estMinutes} min`}
           </span>
-          <button className="btn-primary px-8 py-3 text-lg" onClick={start} disabled={state.kind === 'starting' || game.attemptsLeft === 0}>
-            {state.kind === 'starting' ? 'Starting…' : 'Start'}
-          </button>
+          {outOfPlays && extraCost !== null ? (
+            canAfford ? (
+              <button className="btn-primary px-6 py-3 text-lg" onClick={() => start(true)} disabled={state.kind === 'starting'} data-testid="play-with-coins">
+                {state.kind === 'starting' ? 'Starting…' : `Play again · 🪙 ${extraCost}`}
+              </button>
+            ) : (
+              <Link href="/shop" className="btn-primary px-6 py-3 text-lg">
+                Get coins for another play
+              </Link>
+            )
+          ) : (
+            <button className="btn-primary px-8 py-3 text-lg" onClick={() => start()} disabled={state.kind === 'starting' || outOfPlays}>
+              {state.kind === 'starting' ? 'Starting…' : 'Start'}
+            </button>
+          )}
         </div>
+        {outOfPlays && extraCost !== null && (
+          <p className="text-right text-xs text-muted">Free plays reset at midnight IST. You have 🪙 {user?.coins ?? 0}.</p>
+        )}
         {error && <p className="text-sm text-bad">{error}</p>}
       </div>
     </div>
