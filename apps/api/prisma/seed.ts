@@ -6,6 +6,7 @@ import {
   memoryReconstruction,
   neonDodge,
   neuralBoss,
+  patangRush,
   ruleShift,
   validateParams,
 } from '@axia/engine';
@@ -38,6 +39,19 @@ const games: SeedGame[] = [
       { key: 'normal', label: 'Normal', isDefault: true, params: {} },
       { key: 'hard', label: 'Hard', params: { startWave: 3, speedScale: 1.2 } },
       { key: 'insane', label: 'Insane', params: { startWave: 6, speedScale: 1.4, densityScale: 1.4, grazeRadius: 18 } },
+    ],
+  },
+  {
+    slug: 'patang-rush',
+    template: patangRush,
+    estMinutes: 2,
+    sortOrder: 0,
+    attemptsPerDay: 20,
+    extraTryCoins: 10,
+    presets: [
+      { key: 'normal', label: 'Normal', isDefault: true, params: {} },
+      { key: 'hard', label: 'Hard', params: { startStage: 3, speedRamp: 0.06 } },
+      { key: 'insane', label: 'Insane', params: { startStage: 6, speedRamp: 0.07, gapSize: 250, minGap: 180, rivalsFrom: 4 } },
     ],
   },
   {

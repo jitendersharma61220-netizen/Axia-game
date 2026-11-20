@@ -57,6 +57,7 @@ The next session therefore uses the new settings, with no deploy or restart.
 | Neural Boss | No: correct options stay on the server | Each answer is judged by `POST /sessions/:id/steps`; the server replays the fight and returns the new HP |
 | Memory Reconstruction | Yes, by nature | The player must see the objects; scoring and timing checks happen on the server |
 | Neon Dodge | Only the current wave's seed | Each wave's recorded inputs are replayed on the server, which then reveals the next wave's seed |
+| Patang Rush | Only the current stage's seed | Same as Neon Dodge: each stage's recorded taps are replayed on the server, which then reveals the next stage's seed |
 
 **Instant-feedback games** implement `interactive` on their template (`packages/engine/src/types.ts`). Every move flow works like this:
 

@@ -4,6 +4,7 @@ import { createInternetCafeScene } from './InternetCafeScene';
 import { createMemoryScene } from './MemoryReconstructionScene';
 import { createNeonDodgeScene, type ShipSkin } from './NeonDodgeScene';
 import { createNeuralBossScene } from './NeuralBossScene';
+import { createPatangRushScene } from './PatangRushScene';
 import { createRuleShiftScene } from './RuleShiftScene';
 
 type PhaserLib = typeof PhaserNS;
@@ -30,6 +31,7 @@ type SceneFactory = (
 /** Client half of the engine registry: template key → Phaser scene. */
 export const sceneFactories: Record<string, SceneFactory> = {
   'neon-dodge': createNeonDodgeScene,
+  'patang-rush': createPatangRushScene,
   'memory-reconstruction': createMemoryScene,
   'rule-shift': createRuleShiftScene,
   'digital-detective': createDigitalDetectiveScene,

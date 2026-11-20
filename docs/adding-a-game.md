@@ -38,3 +38,4 @@ The existing templates are good references:
 - `neural-boss`: server-side fight replay with per-answer verdicts
 - `internet-cafe-mission`: multi-stage, with a different UI per stage
 - `neon-dodge`: real-time arcade, replay-verified wave by wave, with an autopilot for tests and the admin difficulty preview
+- `patang-rush`: one-tap real-time arcade; each stage's step is just the tick numbers of the taps

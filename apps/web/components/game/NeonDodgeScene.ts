@@ -65,7 +65,7 @@ interface Particle {
 type Phase = 'countdown' | 'playing' | 'waiting' | 'over';
 
 /** Tiny WebAudio synth: no audio files to download. */
-class Sfx {
+export class Sfx {
   private ctx: AudioContext | null = null;
   muted = false;
   constructor() {
@@ -104,7 +104,7 @@ class Sfx {
   }
 }
 
-function vibrate(ms: number | number[]) {
+export function vibrate(ms: number | number[]) {
   try {
     navigator.vibrate?.(ms);
   } catch {

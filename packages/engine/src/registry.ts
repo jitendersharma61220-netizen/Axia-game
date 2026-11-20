@@ -4,12 +4,14 @@ import { internetCafeMission } from './templates/internet-cafe-mission';
 import { memoryReconstruction } from './templates/memory-reconstruction';
 import { neonDodge } from './templates/neon-dodge';
 import { neuralBoss } from './templates/neural-boss';
+import { patangRush } from './templates/patang-rush';
 import { ruleShift } from './templates/rule-shift';
 import type { AnyGameTemplate, GameCategory } from './types';
 
 /** Every playable template. Register new games here. */
 export const templates: Record<string, AnyGameTemplate> = {
   [neonDodge.key]: neonDodge,
+  [patangRush.key]: patangRush,
   [memoryReconstruction.key]: memoryReconstruction,
   [ruleShift.key]: ruleShift,
   [digitalDetective.key]: digitalDetective,

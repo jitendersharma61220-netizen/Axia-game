@@ -286,6 +286,7 @@ describe('every installed template', () => {
     'neural-boss': { answers: [] },
     'internet-cafe-mission': { stages: [] },
     'neon-dodge': { waves: [] },
+    'patang-rush': { stages: [] },
   };
 
   it('has an e2e submission fixture for each template', () => {
