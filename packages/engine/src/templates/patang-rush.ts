@@ -34,9 +34,11 @@ export const KITE = {
   /** First tower of a stage appears on this tick. */
   FIRST_GATE_TICK: 20,
   /** Terminal fall speed (px per tick). */
-  MAX_FALL: 15,
-  /** Largest jump in gap height between neighbouring towers (px). */
+  MAX_FALL: 12,
+  /** Largest jump in gap height between neighbouring towers (px); early stages allow less. */
   MAX_GAP_DELTA: 260,
+  /** The first tower of a stage sits at most this far from where the kite starts (px). */
+  FIRST_GAP_DELTA: 90,
 } as const;
 
 export const patangRushParamsSchema = z.object({
@@ -211,15 +213,15 @@ export function createKiteRun(params: PatangRushParams, fx = false): KiteRun {
 }
 
 /** Picks the resting gap centre (px) of the next tower, within reach of the previous one. */
-function pickGap(run: KiteRun, stage: number, prev: number) {
+function pickGap(run: KiteRun, stage: number, prev: number, maxDelta = Math.min(KITE.MAX_GAP_DELTA, 140 + 30 * (stage - 1))) {
   const p = run.params;
   const half = Math.trunc(gapFor(p, stage) / 2);
   const amp = movingAllowed(p, stage) ? p.moveAmplitude : 0;
   let lo = 110 + half + amp;
   let hi = KITE.GROUND - 90 - half - amp;
   if (lo > hi) lo = hi = Math.trunc((110 + KITE.GROUND - 90) / 2);
-  lo = Math.max(lo, prev - KITE.MAX_GAP_DELTA);
-  hi = Math.min(hi, prev + KITE.MAX_GAP_DELTA);
+  lo = Math.max(lo, prev - maxDelta);
+  hi = Math.min(hi, prev + maxDelta);
   if (lo > hi) return clamp(prev, Math.min(lo, hi), Math.max(lo, hi));
   return run.rng.int(lo, hi);
 }
@@ -239,7 +241,8 @@ export function beginStage(run: KiteRun, seed: string) {
   run.gateIn = KITE.FIRST_GATE_TICK;
   run.thingIn = -1;
   run.lastGap = Math.trunc(KITE.H * 0.42);
-  run.nextGap = pickGap(run, stage, run.lastGap);
+  // The first tower is close to where the kite starts, so a stage never opens with a big climb or drop.
+  run.nextGap = pickGap(run, stage, run.lastGap, KITE.FIRST_GAP_DELTA);
 }
 
 /** Ticks a tower needs to scroll from where it appears to fully past the kite. */
@@ -476,23 +479,24 @@ export const patangRush: GameTemplate<PatangRushParams, PatangRushLevel, PatangR
   ],
   paramsSchema: patangRushParamsSchema,
   submissionSchema: patangRushSubmissionSchema,
+  // Tuned so a first-time player gets past a few towers and a regular lasts about a minute.
   defaultParams: {
     stageSeconds: 15,
     startStage: 1,
     maxStages: 40,
-    scrollSpeed: 4,
+    scrollSpeed: 3.4,
     speedRamp: 0.05,
-    gravity: 0.55,
-    liftSpeed: 10.5,
-    gateSpacing: 340,
+    gravity: 0.42,
+    liftSpeed: 9,
+    gateSpacing: 380,
     gateWidth: 110,
-    gapSize: 270,
-    gapShrink: 8,
-    minGap: 190,
-    kiteRadius: 17,
-    movingFrom: 3,
+    gapSize: 330,
+    gapShrink: 10,
+    minGap: 200,
+    kiteRadius: 14,
+    movingFrom: 4,
     moveAmplitude: 70,
-    rivalsFrom: 5,
+    rivalsFrom: 6,
     starChance: 0.4,
   },
 

@@ -182,8 +182,9 @@ export function createPatangRushScene(
       this.banner(`STAGE ${stageNumber(this.run)}`, 'Tap (or Space) for a gust of wind');
       const n = label(this, WIDTH / 2, HEIGHT / 2 + 40, '3', 120, { fontStyle: 'bold' }).setOrigin(0.5).setDepth(12);
       let left = 3;
+      // A short count: retries should feel instant.
       this.time.addEvent({
-        delay: 700,
+        delay: 450,
         repeat: 2,
         callback: () => {
           left--;

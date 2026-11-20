@@ -1,18 +1,21 @@
 import { describe, expect, it } from 'vitest';
 import {
+  KITE,
   autopilotStage,
+  beginStage,
   createKiteRun,
   patangRush,
   patangRushSubmissionSchema,
   playStage,
   replayKiteRun,
   stageTicks,
+  tickKite,
   type PatangRushParams,
   type PatangRushStep,
 } from './patang-rush';
 
 const params = patangRush.defaultParams;
-const insane: PatangRushParams = { ...params, startStage: 6, speedRamp: 0.07, gapSize: 250, minGap: 180, rivalsFrom: 4 };
+const insane: PatangRushParams = { ...params, startStage: 6, speedRamp: 0.07, gapSize: 280, minGap: 185, rivalsFrom: 5 };
 
 /** Plays a whole run with the autopilot, returning the recorded steps. */
 function autoplay(p: PatangRushParams, seed: string, maxStages = p.maxStages) {
@@ -106,6 +109,26 @@ describe('patang-rush', () => {
     }
     // …but even a zero-reaction-time bot with perfect vision never gets near the end.
     expect(Math.max(...reached)).toBeLessThan(25);
+  });
+
+  it('is gentle on a slow, simple player', () => {
+    // Taps 10 ticks (~170 ms) after the kite sinks below the middle of the next gap: a rough first-timer.
+    for (const seed of ['n1', 'n2', 'n3', 'n4', 'n5', 'n6']) {
+      const level = patangRush.generateLevel(params, seed);
+      const run = createKiteRun(params);
+      beginStage(run, level.stageSeeds[0]);
+      const queue: number[] = [];
+      for (let t = 0; t < stageTicks(params) && run.alive; t++) {
+        const next = run.gates.find((g) => g.x + g.w >= (KITE.KX - params.kiteRadius) * KITE.FP);
+        const aim = next ? next.cy : (KITE.H / 2) * KITE.FP;
+        const last = queue.length ? queue[queue.length - 1] : -99;
+        if (run.y > aim && run.vy >= 0 && t - last > 8) queue.push(t + 10);
+        const tap = queue.length > 0 && queue[0] <= t;
+        while (queue.length && queue[0] <= t) queue.shift();
+        tickKite(run, tap);
+      }
+      expect(run.gatesPassed).toBeGreaterThanOrEqual(3);
+    }
   });
 
   it('gets harder on harder presets', () => {

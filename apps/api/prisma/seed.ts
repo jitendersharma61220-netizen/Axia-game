@@ -51,7 +51,7 @@ const games: SeedGame[] = [
     presets: [
       { key: 'normal', label: 'Normal', isDefault: true, params: {} },
       { key: 'hard', label: 'Hard', params: { startStage: 3, speedRamp: 0.06 } },
-      { key: 'insane', label: 'Insane', params: { startStage: 6, speedRamp: 0.07, gapSize: 250, minGap: 180, rivalsFrom: 4 } },
+      { key: 'insane', label: 'Insane', params: { startStage: 6, speedRamp: 0.07, gapSize: 280, minGap: 185, rivalsFrom: 5 } },
     ],
   },
   {
