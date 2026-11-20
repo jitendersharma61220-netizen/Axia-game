@@ -10,9 +10,9 @@ export default function RefundsPage() {
       title="Refund & Cancellation Policy"
       intro={
         <p>
-          <b>Right now, Axia is free.</b> During the closed beta we do not charge for anything and we do not collect payment
-          details, so there is nothing to refund or cancel. The sections below describe how refunds and cancellations will work
-          if paid plans are introduced. They will be finalised, and shown to you, before any payment is taken.
+          <b>Every game on Axia is free to play.</b> The only thing you can buy is coins, which are spent on extra plays and
+          cosmetic skins. During the closed beta the shop runs in test mode and no real money is taken. This policy explains
+          how refunds will work once real payments are switched on, and how they will work for any future plans.
         </p>
       }
       sections={[
@@ -21,7 +21,7 @@ export default function RefundsPage() {
           title: 'During the closed beta',
           body: (
             <ul>
-              <li>All games, challenges and features are free.</li>
+              <li>All games, challenges and features are free. The shop runs in test mode, so buying coins takes no real money.</li>
               <li>We never ask for card, UPI or bank details.</li>
               <li>
                 If anyone asks you to pay for Axia, or for an invite code, it is not us. Please report it to{' '}
@@ -45,6 +45,27 @@ export default function RefundsPage() {
                 Online Gaming Act, 2025 before launch.]
               </mark>
             </>
+          ),
+        },
+        {
+          id: 'coins',
+          title: 'Coins',
+          body: (
+            <ul>
+              <li>
+                <b>Spent coins are not refundable.</b> This covers an extra play you have started and a skin you have unlocked,
+                because you receive them immediately.
+              </li>
+              <li>
+                <b>Unspent coins</b> from a purchase can be refunded if you ask within 7 days of buying them and have not spent
+                any coins from that purchase.
+              </li>
+              <li>
+                If a payment went through but the coins did not reach your balance, or you were charged twice, we refund the
+                payment or add the coins, as you prefer.
+              </li>
+              <li>Coins are never paid out in cash. A refund always goes back to the original payment method.</li>
+            </ul>
           ),
         },
         {

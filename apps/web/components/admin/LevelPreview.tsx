@@ -6,6 +6,19 @@
  * Static summary of a generated level, so admins can see the effect of a
  * change before saving it. One small renderer per template, plus a JSON fallback.
  */
+
+import { useMemo } from 'react';
+import {
+  autopilotStage,
+  autopilotWave,
+  createKiteRun,
+  createRun,
+  stageNumber,
+  waveNumber,
+  type NeonDodgeParams,
+  type PatangRushParams,
+} from '@axia/engine';
+
 export function LevelPreview({ templateKey, level, serverLevel }: { templateKey: string; level: any; serverLevel?: any }) {
   const render = previews[templateKey];
   if (!render) {
@@ -16,6 +29,9 @@ export function LevelPreview({ templateKey, level, serverLevel }: { templateKey:
 
 /** `level` is what players receive; `full` is the admin-only server level including answers. */
 const previews: Record<string, (level: any, full: any) => React.ReactNode> = {
+  'neon-dodge': (level, full) => <NeonDodgePreview params={level.params} waveSeeds={full.waveSeeds ?? [level.firstSeed]} />,
+  'patang-rush': (level, full) => <PatangRushPreview params={level.params} stageSeeds={full.stageSeeds ?? [level.firstSeed]} />,
+
   'memory-reconstruction': (level) => {
     const round = level.rounds[0];
     const byCell = new Map<number, string>(round.placements.map((p: any) => [p.cell, p.icon]));
@@ -108,3 +124,51 @@ const previews: Record<string, (level: any, full: any) => React.ReactNode> = {
     </>
   ),
 };
+
+/** Lets an admin feel a preset's difficulty: a zero-reaction-time bot plays this exact run. */
+function NeonDodgePreview({ params, waveSeeds }: { params: NeonDodgeParams; waveSeeds: string[] }) {
+  const result = useMemo(() => {
+    const run = createRun(params);
+    for (let i = 0; i < waveSeeds.length && !run.ended; i++) autopilotWave(run, waveSeeds[i]);
+    return run;
+  }, [params, waveSeeds]);
+  const reached = waveNumber(result);
+  const secs = Math.floor(result.totalTicks / 60);
+  return (
+    <>
+      <p>
+        Autopilot (perfect vision, zero reaction time) reached <b>wave {reached}</b> in {Math.floor(secs / 60)}:
+        {String(secs % 60).padStart(2, '0')} with <b>{result.points.toLocaleString('en-IN')}</b> points
+        {result.death ? `, then hit by a ${result.death.cause}` : ''}.
+      </p>
+      <p className="text-xs text-muted">
+        Real players usually fall well short of the bot. Waves last {params.waveSeconds}s; run starts at wave {params.startWave}
+        {params.bossEvery ? `; boss every ${params.bossEvery} waves` : ''}. Hazards: {params.hazards.join(', ')}.
+      </p>
+    </>
+  );
+}
+
+function PatangRushPreview({ params, stageSeeds }: { params: PatangRushParams; stageSeeds: string[] }) {
+  const result = useMemo(() => {
+    const run = createKiteRun(params);
+    for (let i = 0; i < stageSeeds.length && !run.ended; i++) autopilotStage(run, stageSeeds[i]);
+    return run;
+  }, [params, stageSeeds]);
+  const secs = Math.floor(result.totalTicks / 60);
+  return (
+    <>
+      <p>
+        Autopilot (perfect vision, zero reaction time) reached <b>stage {stageNumber(result)}</b> in {Math.floor(secs / 60)}:
+        {String(secs % 60).padStart(2, '0')}, through <b>{result.gatesPassed}</b> towers for{' '}
+        <b>{result.points.toLocaleString('en-IN')}</b> points{result.death ? `, then hit the ${result.death.cause}` : ''}.
+      </p>
+      <p className="text-xs text-muted">
+        Real players usually fall well short of the bot. Stages last {params.stageSeconds}s; run starts at stage {params.startStage}; gap{' '}
+        {params.gapSize}px shrinking {params.gapShrink}px a stage to {params.minGap}px
+        {params.movingFrom ? `; sliding gaps from stage ${params.movingFrom}` : ''}
+        {params.rivalsFrom ? `; rival kites from stage ${params.rivalsFrom}` : ''}.
+      </p>
+    </>
+  );
+}

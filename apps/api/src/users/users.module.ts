@@ -15,6 +15,7 @@ export function toPublicUser(u: User) {
     role: u.role,
     ageMode: u.ageMode,
     onboarded: u.ageMode !== null,
+    coins: u.coins,
     createdAt: u.createdAt,
   };
 }

@@ -15,16 +15,17 @@ import {
   Param,
   Post,
 } from '@nestjs/common';
-import { Prisma, SessionStatus, type Challenge, type User } from '@prisma/client';
+import { CoinReason, Prisma, SessionStatus, type Challenge, type User } from '@prisma/client';
 import { getTemplate, validateParams } from '@axia/engine';
 import { randomUUID } from 'node:crypto';
-import { IsInt, IsObject, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsBoolean, IsInt, IsObject, IsOptional, IsString, Max, Min } from 'class-validator';
 import { CurrentUser } from '../common/decorators';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
 import { GamesModule, GamesService } from '../games/games.module';
 import { LeaderboardsModule, LeaderboardsService, type RankInfo } from '../leaderboards/leaderboards.module';
 import { AnalyticsService } from '../analytics/analytics.service';
+import { CoinsModule, CoinsService } from '../coins/coins.module';
 
 class StartSessionDto {
   /** Difficulty preset key; defaults to the game's default preset. */
@@ -36,6 +37,11 @@ class StartSessionDto {
   @IsOptional()
   @IsString()
   challengeId?: string;
+
+  /** Pay the game's extraTryCoins for one more play once today's free plays are used. */
+  @IsOptional()
+  @IsBoolean()
+  useCoins?: boolean;
 }
 
 const stepsKey = (sessionId: string) => `steps:${sessionId}`;
@@ -45,6 +51,20 @@ const doneKey = (sessionId: string) => `steps:${sessionId}:done`;
 export const MIN_HUMAN_STEP_GAP_MS = 150;
 function hasInhumanGap(times: number[]) {
   return times.some((t, i) => i > 0 && t - times[i - 1] < MIN_HUMAN_STEP_GAP_MS);
+}
+
+/**
+ * Real-time games (InteractiveSpec.stepPlayMs): each move must arrive about as long
+ * after the previous one as the play it covers. Faster means the run was simulated,
+ * not played; much slower means it was paused or rewound and replayed.
+ */
+export const PACE = { minRatio: 0.85, minSlackMs: 500, maxRatio: 1.35, maxSlackMs: 5000, firstStepExtraMs: 20_000 };
+export function isOffPace(times: number[], startedAt: number, playMs: number[]) {
+  return times.some((t, i) => {
+    const gap = t - (i === 0 ? startedAt : times[i - 1]);
+    const extra = i === 0 ? PACE.firstStepExtraMs : 0;
+    return gap < playMs[i] * PACE.minRatio - PACE.minSlackMs || gap > playMs[i] * PACE.maxRatio + PACE.maxSlackMs + extra;
+  });
 }
 
 class StepDto {
@@ -70,6 +90,7 @@ export class SessionsService {
     private readonly games: GamesService,
     private readonly boards: LeaderboardsService,
     private readonly analytics: AnalyticsService,
+    private readonly coins: CoinsService,
   ) {}
 
   async start(user: User, slug: string, dto: StartSessionDto) {
@@ -105,12 +126,33 @@ export class SessionsService {
     const attemptsKey = this.games.attemptsKey(user.id, game.id);
     const used = await this.redis.incr(attemptsKey);
     await this.redis.expire(attemptsKey, 2 * 86_400);
+    // Past the free plays, an adult may buy one more play with coins (never for challenges,
+    // which stay one attempt each for everyone).
+    let paidCoins = 0;
     if (used > game.attemptsPerDay) {
-      await this.redis.decr(attemptsKey);
-      throw new HttpException(
-        { code: 'ATTEMPTS_EXHAUSTED', message: `Daily limit of ${game.attemptsPerDay} plays reached. Come back tomorrow!` },
-        HttpStatus.TOO_MANY_REQUESTS,
-      );
+      const canBuy = dto.useCoins && !challenge && typeof game.extraTryCoins === 'number';
+      if (!canBuy) {
+        await this.redis.decr(attemptsKey);
+        if (dto.useCoins) {
+          throw new ConflictException({ code: 'EXTRA_TRY_UNAVAILABLE', message: 'Extra plays can’t be bought for this game.' });
+        }
+        throw new HttpException(
+          {
+            code: 'ATTEMPTS_EXHAUSTED',
+            message: `Daily limit of ${game.attemptsPerDay} plays reached. Come back tomorrow!`,
+            extraTryCoins: challenge ? null : game.extraTryCoins,
+          },
+          HttpStatus.TOO_MANY_REQUESTS,
+        );
+      }
+      try {
+        this.coins.assertCanUseCoins(user);
+        await this.coins.debit(user.id, game.extraTryCoins!, CoinReason.EXTRA_TRY, game.slug);
+      } catch (err) {
+        await this.redis.decr(attemptsKey);
+        throw err;
+      }
+      paidCoins = game.extraTryCoins!;
     }
 
     const seed = challenge?.seed ?? randomUUID();
@@ -129,16 +171,23 @@ export class SessionsService {
       });
     } catch (err) {
       await this.redis.decr(attemptsKey);
+      if (paidCoins) await this.coins.credit(user.id, paidCoins, CoinReason.EXTRA_TRY_REFUND, game.slug);
       throw err;
     }
-    this.analytics.track('game_start', user.id, { game: game.slug, difficulty: preset.key, challengeId: challenge?.id ?? null });
+    this.analytics.track('game_start', user.id, {
+      game: game.slug,
+      difficulty: preset.key,
+      challengeId: challenge?.id ?? null,
+      ...(paidCoins ? { paidCoins } : {}),
+    });
 
     return {
       sessionId: session.id,
       game: { slug: game.slug, name: game.name, templateKey: game.templateKey },
       difficulty: { key: preset.key, label: preset.label },
       challenge: challenge ? { id: challenge.id, title: challenge.title, type: challenge.type } : null,
-      attemptsLeft: game.attemptsPerDay - used,
+      attemptsLeft: Math.max(0, game.attemptsPerDay - used),
+      paidCoins,
       level: template.toClientLevel(level, params),
     };
   }
@@ -169,7 +218,13 @@ export class SessionsService {
     const result = template.score(level, parsed.data, { durationMs }, params);
     const fraudFlags: string[] = [];
     if (durationMs < bounds.minMs) fraudFlags.push('too_fast');
-    if (recorded && hasInhumanGap(recorded.map((r) => r.at))) fraudFlags.push('too_fast_steps');
+    const playMs = template.interactive?.stepPlayMs;
+    if (recorded && playMs) {
+      const covered = recorded.map((r) => playMs(r.step, params));
+      if (isOffPace(recorded.map((r) => r.at), session.startedAt.getTime(), covered)) fraudFlags.push('off_pace');
+    } else if (recorded && hasInhumanGap(recorded.map((r) => r.at))) {
+      fraudFlags.push('too_fast_steps');
+    }
     const status = fraudFlags.length ? SessionStatus.FLAGGED : SessionStatus.COMPLETED;
 
     // Conditional update guards against double submits racing each other.
@@ -293,5 +348,5 @@ export class SessionsController {
   }
 }
 
-@Module({ imports: [GamesModule, LeaderboardsModule], providers: [SessionsService], controllers: [SessionsController] })
+@Module({ imports: [GamesModule, LeaderboardsModule, CoinsModule], providers: [SessionsService], controllers: [SessionsController] })
 export class SessionsModule {}

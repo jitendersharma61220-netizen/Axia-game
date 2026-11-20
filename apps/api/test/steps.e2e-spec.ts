@@ -3,7 +3,7 @@ import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { PrismaClient } from '@prisma/client';
 import Redis from 'ioredis';
-import { memoryReconstruction, neuralBoss, pileFor, ruleShift } from '@axia/engine';
+import { autopilotWave, createRun, memoryReconstruction, neonDodge, neuralBoss, pileFor, replayRun, ruleShift, type NeonDodgeStep } from '@axia/engine';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/setup';
 
@@ -41,6 +41,9 @@ beforeAll(async () => {
     { slug: 'rs', template: ruleShift, params: { ...ruleShift.defaultParams, trials: 8, minRun: 3, maxRun: 4 } },
     { slug: 'nb', template: neuralBoss, params: { ...neuralBoss.defaultParams, bossHp: 30, playerHp: 2, maxQuestions: 10 } },
     { slug: 'mem', template: memoryReconstruction, params: memoryReconstruction.defaultParams },
+    { slug: 'nd', template: neonDodge, params: { ...neonDodge.defaultParams, waveSeconds: 8, maxWaves: 3 } },
+    // Brutal from the first second, so an idle player is hit within a couple of seconds.
+    { slug: 'nd-hot', template: neonDodge, params: { ...neonDodge.defaultParams, startWave: 9, speedScale: 1.6, densityScale: 2.5, waveSeconds: 8 } },
   ];
   for (const g of games) {
     await prisma.game.create({
@@ -161,5 +164,69 @@ describe('Neural Boss: the fight is judged on the server', () => {
     expect(res.body.breakdown).toMatchObject({ won: 1, livesLeft: 1, hits: 3 });
     // Recorded moves are cleaned up after scoring.
     expect(await redis.exists(`steps:${id}`)).toBe(0);
+  });
+});
+
+describe('Neon Dodge: runs are replayed on the server', () => {
+  it('sends only the first wave seed and scores a run played at real speed from its inputs', async () => {
+    const p = await player('nd-real@test.local');
+    const start = await p.post('/api/games/nd-hot/sessions').send({}).expect(201);
+    const id = start.body.sessionId;
+    const level = await serverLevel(id, neonDodge);
+    expect(start.body.level.firstSeed).toBe(level.waveSeeds[0]);
+    for (const s of level.waveSeeds.slice(1)) expect(JSON.stringify(start.body.level)).not.toContain(s);
+
+    // Stand still: the server works out when the ship was hit.
+    const params = start.body.level.params;
+    const probe = replayRun(level, params, [{ inputs: [[params.waveSeconds * 60, -1, -1]] }]);
+    expect(probe.ended).toBe('hit');
+    // Like the browser, record inputs up to and including the tick of the hit.
+    const step: NeonDodgeStep = { inputs: [[probe.totalTicks + 1, -1, -1]] };
+    const expected = replayRun(level, params, [step]);
+    expect(expected.ended).toBe('hit');
+    // Play at real speed: the wave can't be reported before it could have been played.
+    await sleep(Math.ceil((expected.totalTicks * 1000) / 60));
+    const verdict = await p.post(`/api/sessions/${id}/steps`).send({ index: 0, step }).expect(200);
+    expect(verdict.body).toMatchObject({ outcome: 'hit', done: true, points: expected.points });
+    expect(verdict.body.nextSeed).toBeUndefined();
+
+    const again = await p.post(`/api/sessions/${id}/steps`).send({ index: 1, step }).expect(409);
+    expect(again.body.code).toBe('GAME_OVER');
+
+    // A forged submission is ignored; only the replayed inputs count.
+    const res = await p.post(`/api/sessions/${id}/submit`).send({ submission: { waves: [] } }).expect(201);
+    expect(res.body.status).toBe('COMPLETED');
+    expect(res.body.score).toBe(expected.points);
+    expect(res.body.maxScore).toBe(0);
+    expect(res.body.leaderboard.best).toBe(expected.points);
+  });
+
+  it('reveals the next wave only after the server has judged the current one', async () => {
+    const p = await player('nd-waves@test.local');
+    const start = await p.post('/api/games/nd/sessions').send({}).expect(201);
+    const id = start.body.sessionId;
+    const level = await serverLevel(id, neonDodge);
+    const run = createRun(start.body.level.params);
+    const step = autopilotWave(run, start.body.level.firstSeed);
+    expect(run.alive).toBe(true);
+    const verdict = await p.post(`/api/sessions/${id}/steps`).send({ index: 0, step }).expect(200);
+    expect(verdict.body).toMatchObject({ outcome: 'survived', done: false, nextSeed: level.waveSeeds[1], points: run.points });
+  });
+
+  it('flags a run whose waves arrive faster than they could be played', async () => {
+    const p = await player('nd-fast@test.local');
+    const start = await p.post('/api/games/nd/sessions').send({}).expect(201);
+    const id = start.body.sessionId;
+    const run = createRun(start.body.level.params);
+    let seed: string | undefined = start.body.level.firstSeed;
+    for (let i = 0; seed; i++) {
+      const step = autopilotWave(run, seed);
+      const v = await p.post(`/api/sessions/${id}/steps`).send({ index: i, step }).expect(200);
+      seed = v.body.nextSeed;
+    }
+    const res = await p.post(`/api/sessions/${id}/submit`).send({ submission: {} }).expect(201);
+    expect(res.body.status).toBe('FLAGGED');
+    expect(res.body.fraudFlags).toContain('off_pace');
+    expect(res.body.leaderboard).toBeNull();
   });
 });

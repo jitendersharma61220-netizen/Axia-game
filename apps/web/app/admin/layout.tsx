@@ -11,6 +11,7 @@ const items = [
   { href: '/admin/challenges', label: 'Challenges' },
   { href: '/admin/users', label: 'Users' },
   { href: '/admin/invites', label: 'Invite codes' },
+  { href: '/admin/shop', label: 'Shop & coins' },
   { href: '/admin/feedback', label: 'Feedback' },
   { href: '/admin/audit', label: 'Audit log' },
 ];

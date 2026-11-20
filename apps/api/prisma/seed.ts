@@ -4,7 +4,9 @@ import {
   digitalDetective,
   internetCafeMission,
   memoryReconstruction,
+  neonDodge,
   neuralBoss,
+  patangRush,
   ruleShift,
   validateParams,
 } from '@axia/engine';
@@ -19,10 +21,39 @@ interface SeedGame {
   template: { key: string; name: string; description: string };
   estMinutes: number;
   sortOrder: number;
+  attemptsPerDay?: number;
+  /** Coins for one more play after the free plays (adults only). */
+  extraTryCoins?: number;
   presets: { key: string; label: string; isDefault?: boolean; params: Record<string, unknown> }[];
 }
 
 const games: SeedGame[] = [
+  {
+    slug: 'neon-dodge',
+    template: neonDodge,
+    estMinutes: 3,
+    sortOrder: 0,
+    attemptsPerDay: 20,
+    extraTryCoins: 10,
+    presets: [
+      { key: 'normal', label: 'Normal', isDefault: true, params: {} },
+      { key: 'hard', label: 'Hard', params: { startWave: 3, speedScale: 1.2 } },
+      { key: 'insane', label: 'Insane', params: { startWave: 6, speedScale: 1.4, densityScale: 1.4, grazeRadius: 18 } },
+    ],
+  },
+  {
+    slug: 'patang-rush',
+    template: patangRush,
+    estMinutes: 2,
+    sortOrder: 0,
+    attemptsPerDay: 20,
+    extraTryCoins: 10,
+    presets: [
+      { key: 'normal', label: 'Normal', isDefault: true, params: {} },
+      { key: 'hard', label: 'Hard', params: { startStage: 3, speedRamp: 0.06 } },
+      { key: 'insane', label: 'Insane', params: { startStage: 6, speedRamp: 0.07, gapSize: 250, minGap: 180, rivalsFrom: 4 } },
+    ],
+  },
   {
     slug: 'memory-reconstruction',
     template: memoryReconstruction,
@@ -94,7 +125,8 @@ async function main() {
         ageModes: [AgeMode.ADULT, AgeMode.TEEN],
         estMinutes: g.estMinutes,
         sortOrder: g.sortOrder,
-        attemptsPerDay: 5,
+        attemptsPerDay: g.attemptsPerDay ?? 5,
+        extraTryCoins: g.extraTryCoins ?? null,
       },
     });
     for (const [i, p] of g.presets.entries()) {
@@ -106,6 +138,24 @@ async function main() {
         create: { gameId: row.id, key: p.key, label: p.label, sortOrder: i + 1, isDefault: p.isDefault ?? false, params: v.params as object },
       });
     }
+  }
+
+  // Coin packs and cosmetics. Coins are spend-only: they are never won or paid out.
+  const packs = [
+    { key: 'starter', label: 'Starter', pricePaise: 4900, coins: 50, bonusCoins: 0, sortOrder: 1 },
+    { key: 'value', label: 'Value', pricePaise: 9900, coins: 100, bonusCoins: 10, sortOrder: 2 },
+    { key: 'mega', label: 'Mega', pricePaise: 24900, coins: 250, bonusCoins: 50, sortOrder: 3 },
+  ];
+  for (const p of packs) await prisma.coinPack.upsert({ where: { key: p.key }, update: {}, create: p });
+  const skins = [
+    { key: 'ship-ember', label: 'Ember', priceCoins: 30, data: { core: 0xfff1e0, glow: 0xff7a1a, trail: 0xff3d00 } },
+    { key: 'ship-toxic', label: 'Toxic', priceCoins: 40, data: { core: 0xf0ffe0, glow: 0x84ff3a, trail: 0x3aff7a } },
+    { key: 'ship-royal', label: 'Royal', priceCoins: 60, data: { core: 0xfff6d6, glow: 0xffd23f, trail: 0xb07cff } },
+    { key: 'ship-ghost', label: 'Ghost', priceCoins: 80, data: { core: 0xffffff, glow: 0xcfd8ff, trail: 0x8090c0 } },
+    { key: 'ship-nova', label: 'Nova', priceCoins: 120, data: { core: 0xffe6fb, glow: 0xff2bd6, trail: 0x7c5cff } },
+  ];
+  for (const [i, k] of skins.entries()) {
+    await prisma.shopItem.upsert({ where: { key: k.key }, update: {}, create: { ...k, gameSlug: 'neon-dodge', sortOrder: i + 1 } });
   }
 
   const game = await prisma.game.findUniqueOrThrow({ where: { slug: 'memory-reconstruction' } });
@@ -157,7 +207,7 @@ async function main() {
   });
 
   console.log(
-    `Seeded: ${games.map((g) => g.slug).join(', ')} (easy/medium/hard each), daily + weekly challenge` +
+    `Seeded: ${games.map((g) => g.slug).join(', ')} (3 difficulties each), coin packs + skins, daily + weekly challenge` +
       (process.env.NODE_ENV === 'production' ? '' : ', admin@axia.local'),
   );
 }

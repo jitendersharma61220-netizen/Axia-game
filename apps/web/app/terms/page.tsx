@@ -102,11 +102,42 @@ export default function TermsPage() {
           title: 'Paid features',
           body: (
             <p>
-              During the closed beta, Axia is free and we do not take any payments. If we introduce paid plans later, their price,
-              what they include, and how cancellation works will be shown to you before you pay. They will be covered by our{' '}
-              <Link href="/refunds">Refund &amp; Cancellation Policy</Link>. Paid features will never be offered to players under
-              18.
+              Every game on Axia can be played for free. Before you pay for anything, we show you the price and what it includes.
+              Purchases are covered by our <Link href="/refunds">Refund &amp; Cancellation Policy</Link>. Paid features are never
+              offered to players under 18. During the closed beta, the shop runs in test mode and no real payment is taken.
             </p>
+          ),
+        },
+        {
+          id: 'coins',
+          title: 'Coins',
+          body: (
+            <>
+              <p>
+                Coins are a virtual item you can buy in the Shop. You can spend them only on Axia: on an extra play of a game after
+                your free plays for the day are used, and on cosmetic items such as ship skins. Cosmetic items change only how
+                something looks. They never change how a game plays or how it is scored.
+              </p>
+              <ul>
+                <li>
+                  <b>Coins are never won.</b> You cannot win coins, money, vouchers or any other prize by playing or by your rank on
+                  a leaderboard.
+                </li>
+                <li>
+                  <b>Coins have no cash value.</b> They cannot be withdrawn, sold, transferred to another account, or exchanged for
+                  money or anything outside Axia.
+                </li>
+                <li>Only players aged 19 and over can buy or spend coins.</li>
+                <li>
+                  Coins are a licence to use a feature, not your property. Unspent coins end when your account is closed. If we
+                  ever stop offering coins, we will give you reasonable notice.
+                </li>
+                <li>
+                  Coins obtained through a bug, a chargeback or a breach of these terms may be removed. Every change to your
+                  balance is shown in your coin history.
+                </li>
+              </ul>
+            </>
           ),
         },
         {

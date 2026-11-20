@@ -106,7 +106,7 @@ describe('validateParams', () => {
   });
 
   it('exposes a JSON schema for the admin editor', () => {
-    const [d] = listTemplates();
+    const d = listTemplates().find((t) => t.key === 'memory-reconstruction')!;
     const schema = d.paramsJsonSchema as { properties: Record<string, unknown> };
     expect(Object.keys(schema.properties)).toContain('objectCount');
   });

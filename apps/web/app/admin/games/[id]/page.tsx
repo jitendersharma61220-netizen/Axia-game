@@ -28,6 +28,7 @@ interface AdminGameDetail {
   ageModes: ('ADULT' | 'TEEN')[];
   estMinutes: number;
   attemptsPerDay: number;
+  extraTryCoins: number | null;
   availableFrom: string | null;
   availableTo: string | null;
   sortOrder: number;
@@ -112,6 +113,7 @@ function GameSettings({ game, onSaved }: { game: AdminGameDetail; onSaved: () =>
           ageModes: form.ageModes,
           estMinutes: form.estMinutes,
           attemptsPerDay: form.attemptsPerDay,
+          extraTryCoins: form.extraTryCoins,
           availableFrom: form.availableFrom,
           availableTo: form.availableTo,
           sortOrder: form.sortOrder,
@@ -151,6 +153,18 @@ function GameSettings({ game, onSaved }: { game: AdminGameDetail; onSaved: () =>
         <div>
           <label className="label" htmlFor="attempts">Plays per user per day</label>
           <input id="attempts" type="number" min={0} className="input" value={form.attemptsPerDay} onChange={(e) => setForm({ ...form, attemptsPerDay: Number(e.target.value) })} />
+        </div>
+        <div>
+          <label className="label" htmlFor="extra">Extra play price (coins, adults only)</label>
+          <input
+            id="extra"
+            type="number"
+            min={1}
+            className="input"
+            placeholder="Not for sale"
+            value={form.extraTryCoins ?? ''}
+            onChange={(e) => setForm({ ...form, extraTryCoins: e.target.value === '' ? null : Number(e.target.value) })}
+          />
         </div>
         <div>
           <label className="label" htmlFor="est">Estimated minutes</label>

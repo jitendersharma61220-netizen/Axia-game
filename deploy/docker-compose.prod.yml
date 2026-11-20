@@ -48,6 +48,8 @@ services:
       SIGNUP_MODE: ${SIGNUP_MODE:-invite}
       WEB_ORIGIN: https://${DOMAIN}
       ALLOW_DEV_LOGIN: 'false'
+      # Coin packs are shown as "coming soon" until a real payment gateway is connected.
+      PAYMENTS_PROVIDER: 'none'
     depends_on:
       postgres:
         condition: service_healthy

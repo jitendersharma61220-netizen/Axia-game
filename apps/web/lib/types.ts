@@ -6,6 +6,8 @@ export interface Me {
   role: 'USER' | 'ADMIN';
   ageMode: 'TEEN' | 'ADULT' | null;
   onboarded: boolean;
+  /** Spend-only coins (adults). */
+  coins: number;
 }
 
 export interface GameSummary {
@@ -13,10 +15,13 @@ export interface GameSummary {
   name: string;
   description: string;
   templateKey: string;
+  category: 'arcade' | 'warmup';
   howToPlay: string[];
   estMinutes: number;
   attemptsPerDay: number;
   attemptsLeft: number | null;
+  /** Coins for one more play once the free plays are used; null = not for sale. */
+  extraTryCoins: number | null;
   status: string;
   presets: { key: string; label: string; isDefault: boolean }[];
 }
@@ -68,4 +73,32 @@ export interface LeaderboardResponse {
   period?: string;
   entries: { rank: number; score: number; name: string; avatarUrl: string | null; isMe: boolean }[];
   me: RankInfo | null;
+}
+
+export interface ShipSkinData {
+  core: number;
+  glow: number;
+  trail: number;
+}
+
+export interface ShopResponse {
+  balance: number | null;
+  canBuy: boolean;
+  payments: { enabled: boolean; testMode: boolean };
+  packs: { id: string; key: string; label: string; pricePaise: number; coins: number; bonusCoins: number }[];
+  items: {
+    key: string;
+    kind: 'SKIN';
+    gameSlug: string;
+    label: string;
+    priceCoins: number;
+    data: ShipSkinData;
+    owned: boolean;
+    equipped: boolean;
+  }[];
+}
+
+export interface CoinHistory {
+  balance: number;
+  history: { id: string; delta: number; reason: string; ref: string | null; balanceAfter: number; createdAt: string }[];
 }

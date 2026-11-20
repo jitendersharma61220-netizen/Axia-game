@@ -10,8 +10,18 @@ The draft policies are live on the site, marked as drafts:
 Company details (legal name, address, Grievance Officer, jurisdiction, hosting) live in one place: [`apps/web/lib/legal.ts`](../apps/web/lib/legal.ts). Until they are filled in, they show as highlighted placeholders. After sign-off, set `isDraft: false` in that file to remove the draft banner.
 
 ## The product today (closed beta)
-- **Games:** five skill games (memory, rule-switching, deduction, mental-math "boss fight", multi-stage puzzle mission), plus daily and weekly challenges, leaderboards, and "challenge a friend" share links.
-- **Money:** free. No payments, no prizes, no rewards, no ads.
+- **Games:** six skill games, plus daily and weekly challenges, leaderboards, and "challenge a friend" share links.
+  - **Neon Dodge:** the main arcade game, an endless reflex game.
+  - **Five puzzle "warm-ups":** memory, rule-switching, deduction, a mental-math "boss fight", and a multi-stage puzzle mission.
+- **Money:** every game is free to play. There are no prizes, no rewards and no ads.
+- **Coins (built, test mode only):** adults can buy coin packs (₹49/₹99/₹249) and spend them on:
+  - an extra play once the day's free plays are used, which is not allowed on challenges
+  - cosmetic ship skins, which are looks only
+
+  Coins are **never won** and never paid out. They have no cash value and can't be transferred.
+  - No real payment gateway is connected yet. The shop runs in a "test mode" that production refuses to run.
+  - Under-18s cannot buy or spend coins.
+  - Every balance change is recorded in a ledger the player can see.
 - **Sign-in and age:** Google sign-in only. Year of birth is **self-declared**. Under 14 is blocked; 14–18 gets a "Teen" mode; 19+ gets the standard mode.
 - **Access:** invite codes, or a friend's challenge link.
 - **Data processed:** see the Privacy draft. In summary:
@@ -43,6 +53,14 @@ Questions:
 4. Do we need to **register** with the Online Gaming Authority of India, or can we rely on not being notified for registration? Does our scale or our under-18 users change that?
 5. What may **sponsored brand missions** offer (coupons, discounts) without creating "enrichment" for paying users?
 6. What wording do we need in the Terms, and in marketing and advertising, to describe Axia accurately?
+
+7. **Coins.** Is the coin model a permitted feature of an online social game? It works as follows:
+   - adults buy coins with money and spend them only on extra plays and cosmetics;
+   - nothing is ever won;
+   - coins have no cash value and can't be withdrawn or transferred.
+
+   Does selling **extra plays** of a game where scores are ranked (but nothing is won) create any "stake" or "enrichment" concern? Should extra plays be excluded from leaderboard eligibility?
+8. Must unspent coins be refundable or carry an expiry date? Does any prepaid-instrument (PPI) or RBI rule apply to a closed-loop virtual currency like this?
 
 ### B. Children's data (DPDP Act, 2023 and DPDP Rules, 2025)
 Under the DPDP Act, a child is anyone under 18:
@@ -78,7 +96,7 @@ Questions:
 1. **Payment gateway eligibility:** which category and MCC do we apply under? Will gateways accept us under PROGA?
 2. **Auto-renewal:** what are the RBI e-mandate requirements (pre-debit notification, cancellation)?
 3. **Refunds:** what do the Consumer Protection (E-Commerce) Rules, 2020 require us to publish? Is the drafted refund policy acceptable?
-4. **GST:** what rate and invoicing apply to subscriptions and one-off challenges?
+4. **GST:** what rate and invoicing apply to subscriptions, one-off challenges and **coin packs**? Is GST charged when coins are bought or when they are spent?
 5. Should there be a cooling-off or free-trial period?
 
 ### F. Company and brand
@@ -89,6 +107,8 @@ Questions:
 | If the lawyer says… | We change… |
 | --- | --- |
 | Paid access + rewards = online money game | Rewards only for free or skill play with no fee, or drop rewards from paid tiers; rework the pricing page |
+| Paid extra plays are a problem for ranked play | Keep paid plays off leaderboards (score them, but don't rank them), or sell only cosmetics |
+| Unspent coins must be refundable or must expire | Add a refund flow for unspent coins, or show expiry dates in the shop and coin history |
 | Teen mode needs parental consent now | Add a parent-consent step to onboarding for 14–17s, or close Teen mode until it is built |
 | Behavioural analytics not allowed for children | Exclude under-18s from per-user analytics and first-game retention; aggregate only |
 | Explicit consent needed | Add a consent checkbox and a separate notice at sign-up; record the consent timestamp and version |

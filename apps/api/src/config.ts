@@ -40,6 +40,15 @@ export const config = {
   get signupMode(): 'open' | 'invite' {
     return process.env.SIGNUP_MODE === 'invite' ? 'invite' : 'open';
   },
+  /**
+   * Who takes payment for coin packs. `dev` = test mode: purchases complete instantly
+   * with no real money (never allowed in production). `none` = packs are shown but
+   * can't be bought yet. A real gateway (e.g. Razorpay) plugs in here later.
+   */
+  get paymentsProvider(): 'dev' | 'none' {
+    const v = process.env.PAYMENTS_PROVIDER ?? (process.env.NODE_ENV === 'production' ? 'none' : 'dev');
+    return v === 'dev' && process.env.NODE_ENV !== 'production' ? 'dev' : 'none';
+  },
   /** Day boundaries (daily attempts, daily leaderboards) follow Indian time. */
   timeZone: 'Asia/Kolkata',
   authCookie: 'axia_token',
@@ -56,5 +65,6 @@ export function productionConfigProblems(env: NodeJS.ProcessEnv = process.env): 
   if (!env.GOOGLE_CLIENT_ID) problems.push('GOOGLE_CLIENT_ID is required');
   if (env.ALLOW_DEV_LOGIN === 'true') problems.push('ALLOW_DEV_LOGIN must not be true in production');
   if (!env.DATABASE_URL) problems.push('DATABASE_URL is required');
+  if (env.PAYMENTS_PROVIDER === 'dev') problems.push('PAYMENTS_PROVIDER=dev (test-mode purchases) must not be used in production');
   return problems;
 }

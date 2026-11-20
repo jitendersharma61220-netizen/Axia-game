@@ -45,6 +45,10 @@ export class CreateGameDto {
   @IsOptional() @IsInt() @Min(0) @Max(1000)
   attemptsPerDay?: number;
 
+  /** Coins for one more play after the free plays; null = extra plays can't be bought. */
+  @IsOptional() @IsInt() @Min(1) @Max(10_000)
+  extraTryCoins?: number | null;
+
   /** null clears the availability window. */
   @IsOptional() @IsDateString()
   availableFrom?: string | null;
