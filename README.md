@@ -9,6 +9,7 @@ Short skill games with daily challenges, leaderboards, and "challenge a friend" 
 | `apps/web` | Next.js 15 + Tailwind: the player site and the `/admin` control center, with Phaser game scenes |
 | `apps/api` | NestJS 11 + Prisma (PostgreSQL) + Redis: auth, games, sessions, scoring, leaderboards, challenges, analytics, admin |
 | `packages/engine` | Shared TypeScript game engine: templates, seeded level generators, param schemas, scoring |
+| `mobile/` | Patang Rush as an Android app for the Play Store: Phaser 4 + Capacitor 8. Separate npm project, see [mobile/README.md](mobile/README.md) |
 | `deploy/` | Production Docker Compose stack (Caddy HTTPS, Postgres, Redis) and a backup script |
 | `docs/` | [Architecture](docs/architecture.md) · [Adding a game](docs/adding-a-game.md) · [Deploying](docs/deploy.md) |
 

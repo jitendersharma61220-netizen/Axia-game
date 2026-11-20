@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Patang Rush</string>
+    <string name="title_activity_main">Patang Rush</string>
+    <string name="package_name">com.axiagames.patangrush</string>
+    <string name="custom_url_scheme">com.axiagames.patangrush</string>
+</resources>

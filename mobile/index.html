@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#4f8fcf" />
+    <title>Patang Rush</title>
+  </head>
+  <body>
+    <div id="game"></div>
+
+    <section class="panel" id="start">
+      <svg class="kite" viewBox="0 0 72 92" aria-hidden="true">
+        <polygon points="36,4 66,36 36,68 6,36" fill="#d7263d" />
+        <circle cx="36" cy="35" r="11" fill="#ffffff" />
+        <polygon points="36,4 66,36 36,68" fill="#000000" fill-opacity="0.14" />
+        <line x1="36" y1="4" x2="36" y2="68" stroke="#6b4a26" stroke-width="2" />
+        <path d="M6 36 Q36 18 66 36" stroke="#6b4a26" stroke-width="2" fill="none" />
+        <polygon points="36,68 28,84 44,84" fill="#ffffff" stroke="#142233" stroke-opacity="0.25" />
+      </svg>
+      <h1>Patang <span>Rush</span></h1>
+      <p class="tag">MG Road se udaan shuru</p>
+      <ul class="rules">
+        <li><b>Tap anywhere</b> for a gust of wind. Let go and the kite sinks.</li>
+        <li>Slip through the <b>gap between the towers</b>. Touch a tower or the street and the run ends.</li>
+        <li>Every stage is a new stop: <b>MG Road, IFFCO Chowk, Sector 48</b> and on. Grab <b>★ stars</b> for bonus points.</li>
+      </ul>
+      <div class="levels" role="group" aria-label="Difficulty">
+        <button type="button" data-level="normal" aria-pressed="true">Normal</button>
+        <button type="button" data-level="hard" aria-pressed="false">Hard</button>
+        <button type="button" data-level="insane" aria-pressed="false">Insane</button>
+      </div>
+      <p class="best" id="s-best"></p>
+      <button type="button" class="go" id="play" disabled>Loading…</button>
+    </section>
+
+    <section class="panel" id="result" hidden>
+      <p class="eyebrow" id="r-level">Normal</p>
+      <p class="score" id="r-score">0</p>
+      <p class="best" id="r-best"></p>
+      <dl class="stats" id="r-stats"></dl>
+      <p class="note" id="r-note"></p>
+      <button type="button" class="go" id="again">Fly again</button>
+      <div class="levels" role="group" aria-label="Change difficulty">
+        <button type="button" data-level="normal" aria-pressed="true">Normal</button>
+        <button type="button" data-level="hard" aria-pressed="false">Hard</button>
+        <button type="button" data-level="insane" aria-pressed="false">Insane</button>
+      </div>
+    </section>
+
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>
